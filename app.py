@@ -204,22 +204,64 @@ def compare_tracks(local_tracks: Sequence[Track], playlist_tracks: Sequence[Trac
     return missing_playlist, extra_local
 
 
-def ensure_playlist_table_ready(page: Page, wait_seconds: int = 180) -> None:
+def ensure_playlist_table_ready(page: Page, wait_seconds: int = 180, headless: bool = False) -> None:
+    """Wait for Exportify playlists to load. Handles login detection and timeouts."""
     deadline = time.time() + wait_seconds
+    startup_deadline = time.time() + 15  # Give 15 seconds for initial page load
+    page_bootstrapped = False
+    consecutive_no_load = 0
 
     while time.time() < deadline:
-        login_visible = page.locator("#loginButton").count() > 0 and page.locator("#loginButton").first.is_visible()
-        row_count = page.locator("#playlistsContainer tbody tr").count()
+        # Check if page elements exist (not just loaded, but callable)
+        try:
+            login_visible = page.locator("#loginButton").is_visible(timeout=100)
+            row_count = page.locator("#playlistsContainer tbody tr").count()
+        except:
+            # Page not ready yet, wait and retry
+            time.sleep(0.5)
+            continue
 
+        # Playlists loaded successfully
         if row_count > 0:
             return
 
-        if login_visible:
-            time.sleep(1)
-        else:
-            time.sleep(0.5)
+        # Mark page as bootstrapped once we can interact with UI elements
+        if not page_bootstrapped:
+            if time.time() > startup_deadline or login_visible or page.locator("#playlistsContainer").count() > 0:
+                page_bootstrapped = True
 
-    raise TimeoutError("Playlists did not load. Complete Spotify login in the opened browser and retry.")
+        # In headless mode, after page is bootstrapped, fail faster if playlists never appear
+        if headless and page_bootstrapped:
+            if row_count == 0:
+                consecutive_no_load += 1
+                # 60 iterations * 0.5s = ~30 seconds after bootstrap to give time for load
+                if consecutive_no_load >= 60:
+                    raise RuntimeError(
+                        "Silent mode could not load playlists from Exportify. "
+                        "Run one sync with silent mode off to verify playlists load, then enable silent mode again."
+                    )
+            else:
+                consecutive_no_load = 0
+
+        # Sleep based on context
+        if login_visible:
+            time.sleep(1)  # Show login screen, wait longer between checks
+        else:
+            time.sleep(0.5)  # Wait shorter if actively loading
+
+    # After full timeout, determine most useful error message
+    try:
+        login_visible = page.locator("#loginButton").is_visible(timeout=100)
+    except:
+        login_visible = False
+
+    if login_visible:
+        raise RuntimeError(
+            "Silent mode could not access playlists because Exportify requires Spotify login. "
+            "Run one sync with silent mode off to sign in, then enable silent mode again."
+        )
+
+    raise TimeoutError("Playlists did not load from Exportify before timeout. Try again in a moment.")
 
 
 def build_playlist_row_map(page: Page) -> Dict[str, int]:
@@ -257,20 +299,17 @@ def download_exportify_csvs(
 
         try:
             page = context.new_page()
-            page.goto("https://exportify.net", wait_until="domcontentloaded")
+            # Use "load" instead of "domcontentloaded" to wait for more page initialization
+            page.goto("https://exportify.net", wait_until="load", timeout=30000)
 
-            if headless:
-                login_visible = page.locator("#loginButton").count() > 0 and page.locator("#loginButton").first.is_visible()
-                row_count = page.locator("#playlistsContainer tbody tr").count()
-                if login_visible and row_count == 0:
-                    raise RuntimeError(
-                        "Silent mode could not access playlists because Exportify requires Spotify login. "
-                        "Run one sync with silent mode off to sign in, then enable silent mode again."
-                    )
-
-            ensure_playlist_table_ready(page, wait_seconds=login_wait_seconds)
+            ensure_playlist_table_ready(page, wait_seconds=login_wait_seconds, headless=headless)
 
             row_map = build_playlist_row_map(page)
+            if not row_map:
+                raise RuntimeError(
+                    "Exportify loaded but no playlists were detected. "
+                    "Run one sync with silent mode off to confirm playlist visibility."
+                )
 
             for playlist_name in playlist_names:
                 row_index = row_map.get(playlist_name.lower())
@@ -499,7 +538,41 @@ def index() -> str:
                         flash("Downloaded: " + ", ".join(downloaded), "success")
                     if skipped:
                         flash("Skipped: " + ", ".join(skipped), "warning")
-                except RuntimeError as exc:
+                except (RuntimeError, TimeoutError, Error) as exc:
+                    flash(str(exc), "warning")
+
+        if action == "sync_and_compare":
+            if not mapping:
+                flash("No folder-to-playlist mappings selected.", "error")
+            elif not music_root or not music_root.exists() or not music_root.is_dir():
+                flash("Set a valid local music root folder first.", "error")
+            else:
+                playlist_names = [playlist for _, playlist in mapping]
+                if silent_sync:
+                    flash("Running sync silently (headless browser).", "info")
+                else:
+                    flash(
+                        "Chromium will open. If needed, sign in to Spotify on Exportify and wait for playlists to load.",
+                        "info",
+                    )
+                try:
+                    downloaded, skipped = download_exportify_csvs(
+                        playlist_names=playlist_names,
+                        export_dir=export_dir,
+                        profile_dir=profile_dir,
+                        headless=silent_sync,
+                    )
+                    if downloaded:
+                        flash("Downloaded: " + ", ".join(downloaded), "success")
+                    if skipped:
+                        flash("Skipped: " + ", ".join(skipped), "warning")
+                    # Now run comparison
+                    results, total_missing, total_extra = build_comparison_results(
+                        music_root=music_root,
+                        export_dir=export_dir,
+                        mapping=mapping,
+                    )
+                except (RuntimeError, TimeoutError, Error) as exc:
                     flash(str(exc), "warning")
 
         if action == "compare":
@@ -521,7 +594,6 @@ def index() -> str:
         music_root=music_root_input,
         export_dir=export_dir_input,
         profile_dir=profile_dir_input,
-        overrides=overrides_input,
         discovered_folders=discovered_folders,
         selected_folders=selected_folders,
         selected_folders_raw=",".join(selected_folders),

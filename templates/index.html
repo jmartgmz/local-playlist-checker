@@ -13,9 +13,7 @@
 
   <main class="container">
     <section class="hero">
-      <p class="hero-tag">Exportify + Local Music Diff</p>
       <h1>Local Playlist Control Center</h1>
-      <p class="hero-copy">Track what is missing and what is extra between your local folders and Spotify playlists with a single dashboard.</p>
     </section>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -38,16 +36,14 @@
           <label for="selected_folders">Playlist folders to track (comma-separated)</label>
           <input id="selected_folders" name="selected_folders" type="text" value="{{ selected_folders_raw }}" placeholder="OTAKU, Chill Vibes">
 
-          <label for="overrides">Playlist name overrides (folder=playlist, one per line)</label>
-          <textarea id="overrides" name="overrides" rows="4" placeholder="OTAKU=OTAKU">{{ overrides }}</textarea>
-
           <label class="check-row" for="silent_sync">
             <input id="silent_sync" name="silent_sync" type="checkbox" {% if silent_sync %}checked{% endif %}>
             <span>Silent sync (headless browser)</span>
           </label>
 
           <div class="actions">
-            <button class="btn" type="submit" name="action" value="sync">Sync Playlist CSVs from Exportify</button>
+            <button class="btn" type="submit" name="action" value="sync_and_compare">Sync & Compare</button>
+            <button class="btn ghost" type="submit" name="action" value="sync">Sync Playlist CSVs</button>
             <button class="btn ghost" type="submit" name="action" value="compare">Compare Local vs Playlist</button>
           </div>
         </form>
@@ -60,7 +56,7 @@
             {% for row in mapping_rows %}
               <div class="map-item">
                 <span class="src">{{ row.folder }}</span>
-                <span class="arrow">to</span>
+                <span class="arrow">→</span>
                 <span class="dst">{{ row.playlist }}</span>
               </div>
             {% endfor %}
@@ -87,82 +83,90 @@
       </section>
 
       {% for section in results %}
-        <section class="card playlist-card">
-          <h2>{{ section.playlist_name }}</h2>
-          <p class="hint">Local folder: {{ section.local_folder }}</p>
+        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 %}
+        <section class="card playlist-card {% if is_clean %}collapsed{% endif %}" data-playlist="{{ section.playlist_name }}">
+          <div class="playlist-header" onclick="this.parentElement.classList.toggle('collapsed')">
+            <h2>{{ section.playlist_name }}</h2>
+            {% if is_clean %}
+              <span class="collapse-badge">✓ Perfect</span>
+            {% endif %}
+            <span class="toggle-icon">▼</span>
+          </div>
 
-          {% if section.error %}
-            <div class="flash error">{{ section.error }}</div>
-          {% else %}
-            <div class="summary-grid three">
-              <div class="metric">
-                <span class="label">Local Tracks Found</span>
-                <strong>{{ section.local_count }}</strong>
+          <div class="playlist-content">
+            {% if section.error %}
+              <div class="flash error">{{ section.error }}</div>
+            {% else %}
+              <div class="summary-grid three">
+                <div class="metric">
+                  <span class="label">Local Tracks Found</span>
+                  <strong>{{ section.local_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Missing Locally</span>
+                  <strong>{{ section.missing_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Extra Local Files</span>
+                  <strong>{{ section.extra_count }}</strong>
+                </div>
               </div>
-              <div class="metric">
-                <span class="label">Missing Locally</span>
-                <strong>{{ section.missing_count }}</strong>
-              </div>
-              <div class="metric">
-                <span class="label">Extra Local Files</span>
-                <strong>{{ section.extra_count }}</strong>
-              </div>
-            </div>
 
-            <div class="split">
-              <div>
-                <h3>Missing Locally</h3>
-                {% if section.missing %}
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Track</th>
-                        <th>Artists</th>
-                        <th>Source</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for track in section.missing %}
+              <div class="split">
+                <div>
+                  <h3>Missing Locally</h3>
+                  {% if section.missing %}
+                    <table>
+                      <thead>
                         <tr>
-                          <td>{{ track.title }}</td>
-                          <td>{{ track.artists }}</td>
-                          <td>{{ track.source }}</td>
+                          <th>Track</th>
+                          <th>Artists</th>
+                          <th>Source</th>
                         </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                {% else %}
-                  <p class="ok">All playlist tracks are available locally.</p>
-                {% endif %}
-              </div>
+                      </thead>
+                      <tbody>
+                        {% for track in section.missing %}
+                          <tr>
+                            <td>{{ track.title }}</td>
+                            <td>{{ track.artists }}</td>
+                            <td>{{ track.source }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  {% else %}
+                    <p class="ok">All playlist tracks are available locally.</p>
+                  {% endif %}
+                </div>
 
-              <div>
-                <h3>Extra Local Files</h3>
-                {% if section.extra %}
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Track</th>
-                        <th>Artists</th>
-                        <th>Source</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for track in section.extra %}
+                <div>
+                  <h3>Extra Local Files</h3>
+                  {% if section.extra %}
+                    <table>
+                      <thead>
                         <tr>
-                          <td>{{ track.title }}</td>
-                          <td>{{ track.artists }}</td>
-                          <td>{{ track.source }}</td>
+                          <th>Track</th>
+                          <th>Artists</th>
+                          <th>Source</th>
                         </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                {% else %}
-                  <p class="ok">No extra local files detected for this playlist folder.</p>
-                {% endif %}
+                      </thead>
+                      <tbody>
+                        {% for track in section.extra %}
+                          <tr>
+                            <td>{{ track.title }}</td>
+                            <td>{{ track.artists }}</td>
+                            <td>{{ track.source }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  {% else %}
+                    <p class="ok">No extra local files detected for this playlist folder.</p>
+                  {% endif %}
+                </div>
               </div>
-            </div>
-          {% endif %}
+            {% endif %}
+          </div>
         </section>
       {% endfor %}
     {% endif %}
