@@ -28,6 +28,7 @@ DEFAULT_EXPORT_DIR = Path("exports")
 DEFAULT_PROFILE_DIR = Path(".exportify-profile")
 DEFAULT_LOGIN_WAIT_SECONDS = 180
 DEFAULT_CONFIG_PATH = Path(".playlist-checker-config.json")
+LARGE_DURATION_DISCREPANCY_MS = 15000
 EXCLUDED_DISCOVERED_FOLDERS = {
     ".stfolder",
     ".thumbnails",
@@ -51,6 +52,7 @@ class Track:
     title: str
     artists: List[str]
     source: str
+    duration_ms: Optional[int] = None
 
     @property
     def normalized_title(self) -> str:
@@ -67,7 +69,9 @@ def normalize_text(value: str) -> str:
     value = value.replace("&", " and ")
     value = value.replace("feat.", "")
     value = value.replace("ft.", "")
-    value = re.sub(r"[^a-z0-9\s]", " ", value)
+    # Keep Unicode letters/numbers so non-Latin titles (e.g. Japanese) still match.
+    value = re.sub(r"[^\w\s]", " ", value)
+    value = value.replace("_", " ")
     value = re.sub(r"\s+", " ", value)
     return value.strip()
 
@@ -81,6 +85,63 @@ def parse_artists(value: str) -> List[str]:
         return []
     parts = re.split(r";|,|\band\b|\bwith\b|\bx\b", value, flags=re.IGNORECASE)
     return [part.strip() for part in parts if part.strip()]
+
+
+def parse_duration_to_ms(value: str) -> Optional[int]:
+    raw = value.strip()
+    if not raw:
+        return None
+
+    if raw.isdigit():
+        return int(raw)
+
+    # Supports formats like mm:ss and hh:mm:ss from CSV exports.
+    parts = raw.split(":")
+    if not all(part.isdigit() for part in parts):
+        return None
+
+    if len(parts) == 2:
+        minutes, seconds = int(parts[0]), int(parts[1])
+        return (minutes * 60 + seconds) * 1000
+
+    if len(parts) == 3:
+        hours, minutes, seconds = int(parts[0]), int(parts[1]), int(parts[2])
+        return (hours * 3600 + minutes * 60 + seconds) * 1000
+
+    return None
+
+
+def format_duration_ms(duration_ms: Optional[int]) -> str:
+    if duration_ms is None:
+        return "Unknown"
+    total_seconds = duration_ms // 1000
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+    return f"{minutes}:{seconds:02d}"
+
+
+def probe_audio_duration_ms(path: Path) -> Optional[int]:
+    try:
+        mutagen_file = __import__("mutagen", fromlist=["File"]).File
+    except Exception:
+        return None
+
+    try:
+        metadata = mutagen_file(path)
+    except Exception:
+        return None
+
+    if metadata is None or not getattr(metadata, "info", None):
+        return None
+
+    length_seconds = getattr(metadata.info, "length", None)
+    if length_seconds is None:
+        return None
+
+    try:
+        return int(float(length_seconds) * 1000)
+    except (TypeError, ValueError):
+        return None
 
 
 def parse_local_filename(path: Path) -> Track:
@@ -97,7 +158,12 @@ def parse_local_filename(path: Path) -> Track:
         title = stem.strip()
         artists = []
 
-    return Track(title=title, artists=artists, source=path.name)
+    return Track(
+        title=title,
+        artists=artists,
+        source=path.name,
+        duration_ms=probe_audio_duration_ms(path),
+    )
 
 
 def scan_local_tracks(folder: Path) -> List[Track]:
@@ -121,12 +187,16 @@ def read_exportify_csv(csv_path: Path) -> List[Track]:
         for row in reader:
             title = (row.get("Track Name") or "").strip()
             artists_text = (row.get("Artist Name(s)") or "").strip()
+            duration_ms = parse_duration_to_ms(
+                (row.get("Track Duration (ms)") or row.get("Duration (ms)") or row.get("Track Duration") or "").strip()
+            )
             if title:
                 rows.append(
                     Track(
                         title=title,
                         artists=parse_artists(artists_text),
                         source=csv_path.name,
+                        duration_ms=duration_ms,
                     )
                 )
     return rows
@@ -165,13 +235,18 @@ def artists_overlap(local_track: Track, playlist_track: Track) -> bool:
     return bool(local_artists.intersection(playlist_artists))
 
 
-def compare_tracks(local_tracks: Sequence[Track], playlist_tracks: Sequence[Track]) -> Tuple[List[Track], List[Track]]:
+def compare_tracks(
+    local_tracks: Sequence[Track],
+    playlist_tracks: Sequence[Track],
+) -> Tuple[List[Track], List[Track], List[Tuple[Track, Track, str]]]:
     matched_playlist: set[int] = set()
     extra_local: List[Track] = []
+    matched_pairs: List[Tuple[Track, Track, str]] = []
 
     for local_track in local_tracks:
         local_title = local_track.normalized_title
         match_index: Optional[int] = None
+        match_quality = "title"
 
         for idx, playlist_track in enumerate(playlist_tracks):
             if idx in matched_playlist:
@@ -193,6 +268,12 @@ def compare_tracks(local_tracks: Sequence[Track], playlist_tracks: Sequence[Trac
 
         if match_index is not None:
             matched_playlist.add(match_index)
+            playlist_track = playlist_tracks[match_index]
+            local_artists = set(local_track.normalized_artists)
+            playlist_artists = set(playlist_track.normalized_artists)
+            if local_artists and playlist_artists and local_artists.intersection(playlist_artists):
+                match_quality = "artist"
+            matched_pairs.append((local_track, playlist_track, match_quality))
         else:
             extra_local.append(local_track)
 
@@ -201,7 +282,7 @@ def compare_tracks(local_tracks: Sequence[Track], playlist_tracks: Sequence[Trac
         for idx, playlist_track in enumerate(playlist_tracks)
         if idx not in matched_playlist
     ]
-    return missing_playlist, extra_local
+    return missing_playlist, extra_local, matched_pairs
 
 
 def ensure_playlist_table_ready(page: Page, wait_seconds: int = 180, headless: bool = False) -> None:
@@ -422,10 +503,11 @@ def build_comparison_results(
     music_root: Path,
     export_dir: Path,
     mapping: Sequence[Tuple[str, str]],
-) -> Tuple[List[Dict[str, object]], int, int]:
+) -> Tuple[List[Dict[str, object]], int, int, int]:
     results: List[Dict[str, object]] = []
     total_missing = 0
     total_extra = 0
+    total_duration_discrepancies = 0
 
     for folder, playlist_name in mapping:
         local_folder = music_root / folder
@@ -440,6 +522,7 @@ def build_comparison_results(
             "csv_path": str(csv_path) if csv_path else None,
             "missing": [],
             "extra": [],
+            "duration_discrepancies": [],
             "error": None,
         }
 
@@ -449,17 +532,40 @@ def build_comparison_results(
             continue
 
         playlist_tracks = read_exportify_csv(csv_path)
-        missing, extra = compare_tracks(local_tracks, playlist_tracks)
+        missing, extra, matched_pairs = compare_tracks(local_tracks, playlist_tracks)
+        duration_discrepancies: List[Dict[str, str]] = []
+        for local_track, playlist_track, match_quality in matched_pairs:
+            # Duration checks are noisy for title-only fallback matches.
+            if match_quality != "artist":
+                continue
+            if local_track.duration_ms is None or playlist_track.duration_ms is None:
+                continue
+            delta_ms = abs(local_track.duration_ms - playlist_track.duration_ms)
+            if delta_ms >= LARGE_DURATION_DISCREPANCY_MS:
+                duration_discrepancies.append(
+                    {
+                        "title": playlist_track.title,
+                        "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
+                        "source": local_track.source,
+                        "local_duration": format_duration_ms(local_track.duration_ms),
+                        "spotify_duration": format_duration_ms(playlist_track.duration_ms),
+                        "difference": format_duration_ms(delta_ms),
+                    }
+                )
+
         total_missing += len(missing)
         total_extra += len(extra)
+        total_duration_discrepancies += len(duration_discrepancies)
 
         entry["missing"] = [track_to_row(track) for track in missing]
         entry["extra"] = [track_to_row(track) for track in extra]
+        entry["duration_discrepancies"] = duration_discrepancies
         entry["missing_count"] = len(missing)
         entry["extra_count"] = len(extra)
+        entry["duration_discrepancy_count"] = len(duration_discrepancies)
         results.append(entry)
 
-    return results, total_missing, total_extra
+    return results, total_missing, total_extra, total_duration_discrepancies
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -513,6 +619,7 @@ def index() -> str:
     results: List[Dict[str, object]] = []
     total_missing = 0
     total_extra = 0
+    total_duration_discrepancies = 0
 
     if request.method == "POST":
         if action == "sync":
@@ -567,7 +674,7 @@ def index() -> str:
                     if skipped:
                         flash("Skipped: " + ", ".join(skipped), "warning")
                     # Now run comparison
-                    results, total_missing, total_extra = build_comparison_results(
+                    results, total_missing, total_extra, total_duration_discrepancies = build_comparison_results(
                         music_root=music_root,
                         export_dir=export_dir,
                         mapping=mapping,
@@ -581,7 +688,7 @@ def index() -> str:
             elif not music_root or not music_root.exists() or not music_root.is_dir():
                 flash("Set a valid local music root folder first.", "error")
             else:
-                results, total_missing, total_extra = build_comparison_results(
+                results, total_missing, total_extra, total_duration_discrepancies = build_comparison_results(
                     music_root=music_root,
                     export_dir=export_dir,
                     mapping=mapping,
@@ -602,6 +709,7 @@ def index() -> str:
         results=results,
         total_missing=total_missing,
         total_extra=total_extra,
+        total_duration_discrepancies=total_duration_discrepancies,
     )
 
 

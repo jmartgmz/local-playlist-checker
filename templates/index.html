@@ -79,11 +79,15 @@
             <span class="label">Total Extra Local Files</span>
             <strong>{{ total_extra }}</strong>
           </div>
+          <div class="metric">
+            <span class="label">Large Duration Mismatches</span>
+            <strong>{{ total_duration_discrepancies }}</strong>
+          </div>
         </div>
       </section>
 
       {% for section in results %}
-        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 %}
+        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 %}
         <section class="card playlist-card {% if is_clean %}collapsed{% endif %}" data-playlist="{{ section.playlist_name }}">
           <div class="playlist-header" onclick="this.parentElement.classList.toggle('collapsed')">
             <h2>{{ section.playlist_name }}</h2>
@@ -109,6 +113,10 @@
                 <div class="metric">
                   <span class="label">Extra Local Files</span>
                   <strong>{{ section.extra_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Large Duration Mismatches</span>
+                  <strong>{{ section.duration_discrepancy_count }}</strong>
                 </div>
               </div>
 
@@ -164,6 +172,36 @@
                     <p class="ok">No extra local files detected for this playlist folder.</p>
                   {% endif %}
                 </div>
+              </div>
+
+              <div>
+                <h3>Large Duration Mismatches</h3>
+                {% if section.duration_discrepancies %}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Track</th>
+                        <th>Artists</th>
+                        <th>Local Duration</th>
+                        <th>Spotify Duration</th>
+                        <th>Difference</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.duration_discrepancies %}
+                        <tr>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.artists }}</td>
+                          <td>{{ track.local_duration }}</td>
+                          <td>{{ track.spotify_duration }}</td>
+                          <td>{{ track.difference }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">No large duration mismatch detected for matched tracks.</p>
+                {% endif %}
               </div>
             {% endif %}
           </div>
