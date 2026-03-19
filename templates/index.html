@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Playlist Checker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div class="bg-grid"></div>
+
+  <main class="container">
+    <section class="hero">
+      <p class="hero-tag">Exportify + Local Music Diff</p>
+      <h1>Local Playlist Control Center</h1>
+      <p class="hero-copy">Track what is missing and what is extra between your local folders and Spotify playlists with a single dashboard.</p>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <section class="flash-stack">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
+
+    <section class="top-grid">
+      <section class="card settings-card">
+        <h2>Settings</h2>
+        <form method="post">
+          <label for="music_root">Local music root folder</label>
+          <input id="music_root" name="music_root" type="text" value="{{ music_root }}" placeholder="C:/Music">
+
+          <label for="selected_folders">Playlist folders to track (comma-separated)</label>
+          <input id="selected_folders" name="selected_folders" type="text" value="{{ selected_folders_raw }}" placeholder="OTAKU, Chill Vibes">
+
+          <label for="overrides">Playlist name overrides (folder=playlist, one per line)</label>
+          <textarea id="overrides" name="overrides" rows="4" placeholder="OTAKU=OTAKU">{{ overrides }}</textarea>
+
+          <label class="check-row" for="silent_sync">
+            <input id="silent_sync" name="silent_sync" type="checkbox" {% if silent_sync %}checked{% endif %}>
+            <span>Silent sync (headless browser)</span>
+          </label>
+
+          <div class="actions">
+            <button class="btn" type="submit" name="action" value="sync">Sync Playlist CSVs from Exportify</button>
+            <button class="btn ghost" type="submit" name="action" value="compare">Compare Local vs Playlist</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card mapping-card">
+        <h2>Folder to Playlist Mapping</h2>
+        {% if mapping_rows %}
+          <div class="map-list">
+            {% for row in mapping_rows %}
+              <div class="map-item">
+                <span class="src">{{ row.folder }}</span>
+                <span class="arrow">to</span>
+                <span class="dst">{{ row.playlist }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="hint">No mappings selected yet.</p>
+        {% endif %}
+      </section>
+    </section>
+
+    {% if results %}
+      <section class="card summary-card">
+        <h2>Overall Summary</h2>
+        <div class="summary-grid">
+          <div class="metric">
+            <span class="label">Total Missing Locally</span>
+            <strong>{{ total_missing }}</strong>
+          </div>
+          <div class="metric">
+            <span class="label">Total Extra Local Files</span>
+            <strong>{{ total_extra }}</strong>
+          </div>
+        </div>
+      </section>
+
+      {% for section in results %}
+        <section class="card playlist-card">
+          <h2>{{ section.playlist_name }}</h2>
+          <p class="hint">Local folder: {{ section.local_folder }}</p>
+
+          {% if section.error %}
+            <div class="flash error">{{ section.error }}</div>
+          {% else %}
+            <div class="summary-grid three">
+              <div class="metric">
+                <span class="label">Local Tracks Found</span>
+                <strong>{{ section.local_count }}</strong>
+              </div>
+              <div class="metric">
+                <span class="label">Missing Locally</span>
+                <strong>{{ section.missing_count }}</strong>
+              </div>
+              <div class="metric">
+                <span class="label">Extra Local Files</span>
+                <strong>{{ section.extra_count }}</strong>
+              </div>
+            </div>
+
+            <div class="split">
+              <div>
+                <h3>Missing Locally</h3>
+                {% if section.missing %}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Track</th>
+                        <th>Artists</th>
+                        <th>Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.missing %}
+                        <tr>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.artists }}</td>
+                          <td>{{ track.source }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">All playlist tracks are available locally.</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <h3>Extra Local Files</h3>
+                {% if section.extra %}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Track</th>
+                        <th>Artists</th>
+                        <th>Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.extra %}
+                        <tr>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.artists }}</td>
+                          <td>{{ track.source }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">No extra local files detected for this playlist folder.</p>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    {% endif %}
+  </main>
+</body>
+</html>

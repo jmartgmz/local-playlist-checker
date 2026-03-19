@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+exports/
+.exportify-profile/
+.streamlit/
+.playlist-checker-config.json
