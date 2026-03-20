@@ -29,6 +29,8 @@ DEFAULT_PROFILE_DIR = Path(".exportify-profile")
 DEFAULT_LOGIN_WAIT_SECONDS = 180
 DEFAULT_CONFIG_PATH = Path(".playlist-checker-config.json")
 LARGE_DURATION_DISCREPANCY_MS = 15000
+MIN_DURATION_THRESHOLD_SECONDS = 1
+MAX_DURATION_THRESHOLD_SECONDS = 120
 EXCLUDED_DISCOVERED_FOLDERS = {
     ".stfolder",
     ".thumbnails",
@@ -235,6 +237,11 @@ def artists_overlap(local_track: Track, playlist_track: Track) -> bool:
     return bool(local_artists.intersection(playlist_artists))
 
 
+def compact_title(value: str) -> str:
+    value = value.casefold().strip().replace("_", " ")
+    return re.sub(r"\s+", " ", value)
+
+
 def compare_tracks(
     local_tracks: Sequence[Track],
     playlist_tracks: Sequence[Track],
@@ -247,24 +254,32 @@ def compare_tracks(
         local_title = local_track.normalized_title
         match_index: Optional[int] = None
         match_quality = "title"
+        title_candidates: List[Tuple[int, Track]] = []
 
         for idx, playlist_track in enumerate(playlist_tracks):
             if idx in matched_playlist:
                 continue
             if local_title != playlist_track.normalized_title:
                 continue
-            if not artists_overlap(local_track, playlist_track):
-                continue
-            match_index = idx
-            break
+            title_candidates.append((idx, playlist_track))
 
-        if match_index is None:
-            for idx, playlist_track in enumerate(playlist_tracks):
-                if idx in matched_playlist:
-                    continue
-                if local_title == playlist_track.normalized_title:
-                    match_index = idx
-                    break
+        if title_candidates:
+            artist_candidates = [
+                candidate for candidate in title_candidates if artists_overlap(local_track, candidate[1])
+            ]
+            candidate_pool = artist_candidates if artist_candidates else title_candidates
+
+            local_raw_title = compact_title(local_track.title)
+
+            def candidate_key(candidate: Tuple[int, Track]) -> Tuple[int, int, int, int]:
+                idx, playlist_track = candidate
+                exact_title_rank = 0 if local_raw_title == compact_title(playlist_track.title) else 1
+                if local_track.duration_ms is None or playlist_track.duration_ms is None:
+                    return exact_title_rank, 1, 0, idx
+                duration_delta = abs(local_track.duration_ms - playlist_track.duration_ms)
+                return exact_title_rank, 0, duration_delta, idx
+
+            match_index = min(candidate_pool, key=candidate_key)[0]
 
         if match_index is not None:
             matched_playlist.add(match_index)
@@ -422,7 +437,18 @@ def default_config() -> Dict[str, object]:
         "selected_folders": [],
         "overrides": "",
         "silent_sync": True,
+        "duration_threshold_seconds": LARGE_DURATION_DISCREPANCY_MS // 1000,
     }
+
+
+def clamp_duration_threshold_seconds(raw_value: object) -> int:
+    if raw_value is None:
+        return LARGE_DURATION_DISCREPANCY_MS // 1000
+    try:
+        value = int(str(raw_value).strip())
+    except (TypeError, ValueError):
+        return LARGE_DURATION_DISCREPANCY_MS // 1000
+    return max(MIN_DURATION_THRESHOLD_SECONDS, min(MAX_DURATION_THRESHOLD_SECONDS, value))
 
 
 def load_saved_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Dict[str, object]:
@@ -446,6 +472,9 @@ def load_saved_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Dict[str, obje
         config["music_root"] = ""
     if not isinstance(config.get("overrides"), str):
         config["overrides"] = ""
+    config["duration_threshold_seconds"] = clamp_duration_threshold_seconds(
+        config.get("duration_threshold_seconds")
+    )
 
     return config
 
@@ -503,6 +532,7 @@ def build_comparison_results(
     music_root: Path,
     export_dir: Path,
     mapping: Sequence[Tuple[str, str]],
+    duration_threshold_ms: int,
 ) -> Tuple[List[Dict[str, object]], int, int, int]:
     results: List[Dict[str, object]] = []
     total_missing = 0
@@ -533,6 +563,14 @@ def build_comparison_results(
 
         playlist_tracks = read_exportify_csv(csv_path)
         missing, extra, matched_pairs = compare_tracks(local_tracks, playlist_tracks)
+        sorted_missing = sorted(
+            missing,
+            key=lambda track: (
+                not bool(track.normalized_artists),
+                track.normalized_artists[0] if track.normalized_artists else "",
+                track.normalized_title,
+            ),
+        )
         duration_discrepancies: List[Dict[str, str]] = []
         for local_track, playlist_track, match_quality in matched_pairs:
             # Duration checks are noisy for title-only fallback matches.
@@ -541,7 +579,7 @@ def build_comparison_results(
             if local_track.duration_ms is None or playlist_track.duration_ms is None:
                 continue
             delta_ms = abs(local_track.duration_ms - playlist_track.duration_ms)
-            if delta_ms >= LARGE_DURATION_DISCREPANCY_MS:
+            if delta_ms >= duration_threshold_ms:
                 duration_discrepancies.append(
                     {
                         "title": playlist_track.title,
@@ -552,12 +590,19 @@ def build_comparison_results(
                         "difference": format_duration_ms(delta_ms),
                     }
                 )
+        duration_discrepancies.sort(
+            key=lambda row: (
+                row["artists"].casefold() == "unknown",
+                row["artists"].casefold(),
+                row["title"].casefold(),
+            )
+        )
 
         total_missing += len(missing)
         total_extra += len(extra)
         total_duration_discrepancies += len(duration_discrepancies)
 
-        entry["missing"] = [track_to_row(track) for track in missing]
+        entry["missing"] = [track_to_row(track) for track in sorted_missing]
         entry["extra"] = [track_to_row(track) for track in extra]
         entry["duration_discrepancies"] = duration_discrepancies
         entry["missing_count"] = len(missing)
@@ -579,6 +624,9 @@ def index() -> str:
         overrides_input = request.form.get("overrides", str(saved_config.get("overrides", "")))
         selected_folders_raw = request.form.get("selected_folders", "")
         silent_sync = request.form.get("silent_sync") == "on"
+        duration_threshold_seconds = clamp_duration_threshold_seconds(
+            request.form.get("duration_threshold_seconds")
+        )
     else:
         music_root_input = str(saved_config.get("music_root", ""))
         export_dir_input = str(DEFAULT_EXPORT_DIR)
@@ -589,12 +637,16 @@ def index() -> str:
         selected_from_config = [str(item) for item in selected_config_list]
         selected_folders_raw = ",".join(selected_from_config)
         silent_sync = bool(saved_config.get("silent_sync", True))
+        duration_threshold_seconds = clamp_duration_threshold_seconds(
+            saved_config.get("duration_threshold_seconds")
+        )
 
     action = request.form.get("action", "")
 
     music_root = Path(music_root_input).expanduser() if music_root_input.strip() else None
     export_dir = Path(export_dir_input).expanduser()
     profile_dir = Path(profile_dir_input).expanduser()
+    duration_threshold_ms = duration_threshold_seconds * 1000
 
     discovered_folders = collect_discovered_folders(music_root)
     selected_folders = parse_selected_folders(selected_folders_raw)
@@ -611,6 +663,7 @@ def index() -> str:
                 "selected_folders": selected_folders,
                 "overrides": overrides_input,
                 "silent_sync": silent_sync,
+                "duration_threshold_seconds": duration_threshold_seconds,
             }
         )
     except OSError:
@@ -678,6 +731,7 @@ def index() -> str:
                         music_root=music_root,
                         export_dir=export_dir,
                         mapping=mapping,
+                        duration_threshold_ms=duration_threshold_ms,
                     )
                 except (RuntimeError, TimeoutError, Error) as exc:
                     flash(str(exc), "warning")
@@ -692,6 +746,7 @@ def index() -> str:
                     music_root=music_root,
                     export_dir=export_dir,
                     mapping=mapping,
+                    duration_threshold_ms=duration_threshold_ms,
                 )
 
     mapping_rows = [{"folder": folder, "playlist": playlist} for folder, playlist in mapping]
@@ -705,6 +760,7 @@ def index() -> str:
         selected_folders=selected_folders,
         selected_folders_raw=",".join(selected_folders),
         silent_sync=silent_sync,
+        duration_threshold_seconds=duration_threshold_seconds,
         mapping_rows=mapping_rows,
         results=results,
         total_missing=total_missing,

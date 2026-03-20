@@ -41,6 +41,20 @@
             <span>Silent sync (headless browser)</span>
           </label>
 
+          <label for="duration_threshold_seconds">Duration mismatch threshold</label>
+          <div class="range-row">
+            <input
+              id="duration_threshold_seconds"
+              name="duration_threshold_seconds"
+              type="range"
+              min="1"
+              max="120"
+              step="1"
+              value="{{ duration_threshold_seconds }}"
+            >
+            <span class="range-value"><strong id="duration_threshold_display">{{ duration_threshold_seconds }}</strong> sec</span>
+          </div>
+
           <div class="actions">
             <button class="btn" type="submit" name="action" value="sync_and_compare">Sync & Compare</button>
             <button class="btn ghost" type="submit" name="action" value="sync">Sync Playlist CSVs</button>
@@ -80,7 +94,7 @@
             <strong>{{ total_extra }}</strong>
           </div>
           <div class="metric">
-            <span class="label">Large Duration Mismatches</span>
+            <span class="label">Duration Mismatches (>= {{ duration_threshold_seconds }}s)</span>
             <strong>{{ total_duration_discrepancies }}</strong>
           </div>
         </div>
@@ -115,7 +129,7 @@
                   <strong>{{ section.extra_count }}</strong>
                 </div>
                 <div class="metric">
-                  <span class="label">Large Duration Mismatches</span>
+                  <span class="label">Duration Mismatches (>= {{ duration_threshold_seconds }}s)</span>
                   <strong>{{ section.duration_discrepancy_count }}</strong>
                 </div>
               </div>
@@ -127,16 +141,16 @@
                     <table>
                       <thead>
                         <tr>
-                          <th>Track</th>
                           <th>Artists</th>
+                          <th>Track</th>
                           <th>Source</th>
                         </tr>
                       </thead>
                       <tbody>
                         {% for track in section.missing %}
                           <tr>
-                            <td>{{ track.title }}</td>
                             <td>{{ track.artists }}</td>
+                            <td>{{ track.title }}</td>
                             <td>{{ track.source }}</td>
                           </tr>
                         {% endfor %}
@@ -175,13 +189,13 @@
               </div>
 
               <div>
-                <h3>Large Duration Mismatches</h3>
+                <h3>Duration Mismatches (>= {{ duration_threshold_seconds }}s)</h3>
                 {% if section.duration_discrepancies %}
                   <table>
                     <thead>
                       <tr>
-                        <th>Track</th>
                         <th>Artists</th>
+                        <th>Track</th>
                         <th>Local Duration</th>
                         <th>Spotify Duration</th>
                         <th>Difference</th>
@@ -190,8 +204,8 @@
                     <tbody>
                       {% for track in section.duration_discrepancies %}
                         <tr>
-                          <td>{{ track.title }}</td>
                           <td>{{ track.artists }}</td>
+                          <td>{{ track.title }}</td>
                           <td>{{ track.local_duration }}</td>
                           <td>{{ track.spotify_duration }}</td>
                           <td>{{ track.difference }}</td>
@@ -200,7 +214,7 @@
                     </tbody>
                   </table>
                 {% else %}
-                  <p class="ok">No large duration mismatch detected for matched tracks.</p>
+                  <p class="ok">No duration mismatch detected for matched tracks at this threshold.</p>
                 {% endif %}
               </div>
             {% endif %}
@@ -209,5 +223,22 @@
       {% endfor %}
     {% endif %}
   </main>
+
+  <script>
+    (function () {
+      const slider = document.getElementById("duration_threshold_seconds");
+      const display = document.getElementById("duration_threshold_display");
+      if (!slider || !display) {
+        return;
+      }
+
+      const syncValue = () => {
+        display.textContent = slider.value;
+      };
+
+      slider.addEventListener("input", syncValue);
+      syncValue();
+    })();
+  </script>
 </body>
 </html>

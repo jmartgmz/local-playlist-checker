@@ -217,6 +217,25 @@ textarea:focus {
   width: auto;
 }
 
+.range-row {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-row input[type="range"] {
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.range-value {
+  min-width: 64px;
+  text-align: right;
+  font-weight: 600;
+}
+
 .actions {
   margin-top: 16px;
   display: flex;
