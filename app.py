@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import re
 import time
 from dataclasses import dataclass
@@ -775,4 +776,7 @@ def health() -> str:
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "5000"))
+    debug = os.getenv("DEBUG", "true").lower() in {"1", "true", "yes", "on"}
+    app.run(host=host, port=port, debug=debug)
