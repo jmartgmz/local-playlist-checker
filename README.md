@@ -7,6 +7,10 @@ It automates [Exportify](https://github.com/pavelkomarov/exportify) in a browser
 - Songs missing locally (in playlist but not in folder)
 - Extra local songs (in folder but not in playlist)
 - Large duration mismatches between local files and Spotify tracks
+- Download missing tracks directly using [SpotiFLAC](https://github.com/ShuShuzinhuu/SpotiFLAC-Module-Version)
+- Delete extra local files from the dashboard
+
+![Screenshot](screenshots/image.png)
 
 ## Why this avoids API usage
 
