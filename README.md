@@ -61,12 +61,7 @@ python app.py
 
 - Filename parsing is best-effort. Files named like `Artist - Song.mp3` match most accurately.
 - If your naming style is different, comparison still falls back to title-only matching.
-- Exportify profile data is stored in `.exportify-profile` so you usually do not need to log in every run.
 - For first-time login, run one non-silent sync so Spotify auth is saved in the profile, then silent mode can run without opening a visible browser.
 - CSV exports are stored in `exports/` by default.
 - Export CSV folder and Exportify profile folder are fixed to `exports/` and `.exportify-profile/` in this UI version.
 - Dashboard settings are saved automatically to `.playlist-checker-config.json` so paths and mappings persist between runs.
-
-## Legal and Terms
-
-Use this for personal library management and follow Spotify/Exportify terms.
