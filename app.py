@@ -4,12 +4,14 @@ import csv
 import json
 import os
 import re
+import threading
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from flask import Flask, flash, render_template, request
+from flask import Flask, flash, jsonify, render_template, request
 from playwright.sync_api import BrowserContext, Error, Page, TimeoutError, sync_playwright
 
 AUDIO_EXTENSIONS = {
@@ -56,6 +58,8 @@ class Track:
     artists: List[str]
     source: str
     duration_ms: Optional[int] = None
+    spotify_uri: Optional[str] = None
+    file_path: Optional[str] = None
 
     @property
     def normalized_title(self) -> str:
@@ -166,6 +170,7 @@ def parse_local_filename(path: Path) -> Track:
         artists=artists,
         source=path.name,
         duration_ms=probe_audio_duration_ms(path),
+        file_path=str(path),
     )
 
 
@@ -193,6 +198,7 @@ def read_exportify_csv(csv_path: Path) -> List[Track]:
             duration_ms = parse_duration_to_ms(
                 (row.get("Track Duration (ms)") or row.get("Duration (ms)") or row.get("Track Duration") or "").strip()
             )
+            spotify_uri = (row.get("Track URI") or "").strip()
             if title:
                 rows.append(
                     Track(
@@ -200,6 +206,7 @@ def read_exportify_csv(csv_path: Path) -> List[Track]:
                         artists=parse_artists(artists_text),
                         source=csv_path.name,
                         duration_ms=duration_ms,
+                        spotify_uri=spotify_uri,
                     )
                 )
     return rows
@@ -484,11 +491,18 @@ def save_config(config_data: Dict[str, object], config_path: Path = DEFAULT_CONF
     config_path.write_text(json.dumps(config_data, indent=2), encoding="utf-8")
 
 
-def track_to_row(track: Track) -> Dict[str, str]:
+def track_to_row(track: Track, folder: str = "") -> Dict[str, str]:
+    spotify_url = ""
+    if track.spotify_uri and track.spotify_uri.startswith("spotify:track:"):
+        track_id = track.spotify_uri.split(":")[-1]
+        spotify_url = f"https://open.spotify.com/track/{track_id}"
     return {
         "title": track.title,
         "artists": ", ".join(track.artists) if track.artists else "Unknown",
         "source": track.source,
+        "spotify_url": spotify_url,
+        "folder": folder,
+        "file_path": track.file_path or "",
     }
 
 
@@ -603,7 +617,7 @@ def build_comparison_results(
         total_extra += len(extra)
         total_duration_discrepancies += len(duration_discrepancies)
 
-        entry["missing"] = [track_to_row(track) for track in sorted_missing]
+        entry["missing"] = [track_to_row(track, folder=folder) for track in sorted_missing]
         entry["extra"] = [track_to_row(track) for track in extra]
         entry["duration_discrepancies"] = duration_discrepancies
         entry["missing_count"] = len(missing)
@@ -773,6 +787,116 @@ def index() -> str:
 @app.route("/health")
 def health() -> str:
     return "ok"
+
+
+# ---------------------------------------------------------------------------
+# SpotiFLAC download integration
+# ---------------------------------------------------------------------------
+
+download_jobs: Dict[str, Dict[str, object]] = {}
+download_lock = threading.Lock()
+
+
+def _run_spotiflac_download(job_id: str, spotify_url: str, output_dir: str) -> None:
+    """Background worker that runs a single SpotiFLAC download."""
+    download_jobs[job_id]["status"] = "downloading"
+    try:
+        from SpotiFLAC import SpotiFLAC as spotiflac_download
+
+        with download_lock:
+            spotiflac_download(
+                url=spotify_url,
+                output_dir=output_dir,
+                services=["tidal", "spoti", "qobuz", "amazon", "youtube"],
+                filename_format="{artist} - {title}",
+            )
+        download_jobs[job_id]["status"] = "complete"
+    except Exception as exc:
+        download_jobs[job_id]["status"] = "failed"
+        download_jobs[job_id]["error"] = str(exc)
+
+
+@app.route("/download", methods=["POST"])
+def download_track():
+    """Accept a Spotify URL and target folder, launch SpotiFLAC in the background."""
+    data = request.get_json(silent=True) or {}
+    spotify_url = (data.get("spotify_url") or "").strip()
+    folder = (data.get("folder") or "").strip()
+
+    if not spotify_url:
+        return jsonify({"error": "Missing spotify_url"}), 400
+
+    saved_config = load_saved_config()
+    music_root = str(saved_config.get("music_root", ""))
+    if not music_root:
+        return jsonify({"error": "No music root folder configured"}), 400
+
+    output_dir = str(Path(music_root).expanduser() / folder) if folder else music_root
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    job_id = str(uuid.uuid4())
+    download_jobs[job_id] = {
+        "status": "queued",
+        "spotify_url": spotify_url,
+        "folder": folder,
+        "error": None,
+    }
+
+    thread = threading.Thread(
+        target=_run_spotiflac_download,
+        args=(job_id, spotify_url, output_dir),
+        daemon=True,
+    )
+    thread.start()
+
+    return jsonify({"job_id": job_id, "status": "queued"})
+
+
+@app.route("/download_status")
+def download_status():
+    """Return the status of one or all download jobs."""
+    job_id = request.args.get("job_id", "").strip()
+    if job_id:
+        job = download_jobs.get(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        return jsonify({"job_id": job_id, **job})
+
+    return jsonify(download_jobs)
+
+
+@app.route("/delete", methods=["POST"])
+def delete_track():
+    """Delete a local audio file. Validates the path is inside the music root."""
+    data = request.get_json(silent=True) or {}
+    file_path = (data.get("file_path") or "").strip()
+
+    if not file_path:
+        return jsonify({"error": "Missing file_path"}), 400
+
+    saved_config = load_saved_config()
+    music_root = str(saved_config.get("music_root", ""))
+    if not music_root:
+        return jsonify({"error": "No music root configured"}), 400
+
+    target = Path(file_path).resolve()
+    root = Path(music_root).expanduser().resolve()
+
+    # Safety: only allow deleting files inside the music root
+    if not str(target).startswith(str(root)):
+        return jsonify({"error": "Path is outside music root"}), 403
+
+    if not target.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    if target.suffix.lower() not in AUDIO_EXTENSIONS:
+        return jsonify({"error": "Not an audio file"}), 400
+
+    try:
+        target.unlink()
+        return jsonify({"status": "deleted", "file": str(target)})
+    except OSError as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@
     {% if results %}
       <section class="card summary-card">
         <h2>Overall Summary</h2>
-        <div class="summary-grid">
+        <div class="summary-grid three">
           <div class="metric">
             <span class="label">Total Missing Locally</span>
             <strong>{{ total_missing }}</strong>
@@ -138,12 +138,14 @@
                 <div>
                   <h3>Missing Locally</h3>
                   {% if section.missing %}
+                    <button class="btn btn-dl-all" type="button" onclick="downloadAllMissing(this)">⬇ Download All Missing</button>
                     <table>
                       <thead>
                         <tr>
                           <th>Artists</th>
                           <th>Track</th>
                           <th>Source</th>
+                          <th class="dl-col">Download</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -152,6 +154,20 @@
                             <td>{{ track.artists }}</td>
                             <td>{{ track.title }}</td>
                             <td>{{ track.source }}</td>
+                            <td class="dl-col">
+                              {% if track.spotify_url %}
+                                <button
+                                  class="btn-download"
+                                  type="button"
+                                  data-spotify-url="{{ track.spotify_url }}"
+                                  data-folder="{{ track.folder }}"
+                                  onclick="startDownload(this)"
+                                  title="Download with SpotiFLAC"
+                                >⬇</button>
+                              {% else %}
+                                <span class="dl-na" title="No Spotify URL available">—</span>
+                              {% endif %}
+                            </td>
                           </tr>
                         {% endfor %}
                       </tbody>
@@ -164,12 +180,14 @@
                 <div>
                   <h3>Extra Local Files</h3>
                   {% if section.extra %}
+                    <button class="btn btn-del-all" type="button" onclick="deleteAllExtra(this)">🗑 Delete All Extra</button>
                     <table>
                       <thead>
                         <tr>
                           <th>Track</th>
                           <th>Artists</th>
                           <th>Source</th>
+                          <th class="dl-col">Delete</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -178,6 +196,19 @@
                             <td>{{ track.title }}</td>
                             <td>{{ track.artists }}</td>
                             <td>{{ track.source }}</td>
+                            <td class="dl-col">
+                              {% if track.file_path %}
+                                <button
+                                  class="btn-delete"
+                                  type="button"
+                                  data-file-path="{{ track.file_path }}"
+                                  onclick="deleteFile(this)"
+                                  title="Delete this file"
+                                >🗑</button>
+                              {% else %}
+                                <span class="dl-na" title="No file path available">—</span>
+                              {% endif %}
+                            </td>
                           </tr>
                         {% endfor %}
                       </tbody>
@@ -239,6 +270,165 @@
       slider.addEventListener("input", syncValue);
       syncValue();
     })();
+
+    /* ----- SpotiFLAC Download Logic ----- */
+
+    function setButtonState(btn, state, text) {
+      btn.className = "btn-download " + state;
+      btn.textContent = text;
+      btn.disabled = state !== "";
+    }
+
+    function pollDownloadStatus(btn, jobId) {
+      const poll = setInterval(() => {
+        fetch("/download_status?job_id=" + encodeURIComponent(jobId))
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === "complete") {
+              clearInterval(poll);
+              setButtonState(btn, "success", "✓");
+            } else if (data.status === "failed") {
+              clearInterval(poll);
+              setButtonState(btn, "failed", "✗");
+              btn.title = data.error || "Download failed";
+            }
+          })
+          .catch(() => {
+            clearInterval(poll);
+            setButtonState(btn, "failed", "✗");
+          });
+      }, 2000);
+    }
+
+    function startDownload(btn) {
+      const spotifyUrl = btn.dataset.spotifyUrl;
+      const folder = btn.dataset.folder;
+      if (!spotifyUrl) return;
+
+      setButtonState(btn, "downloading", "");
+
+      fetch("/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spotify_url: spotifyUrl, folder: folder }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            setButtonState(btn, "failed", "✗");
+            btn.title = data.error;
+            return;
+          }
+          pollDownloadStatus(btn, data.job_id);
+        })
+        .catch(() => {
+          setButtonState(btn, "failed", "✗");
+        });
+    }
+
+    function downloadAllMissing(allBtn) {
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-download:not(.downloading):not(.success)");
+      allBtn.disabled = true;
+      allBtn.textContent = "⬇ Downloading...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All queued";
+          return;
+        }
+        const btn = buttons[idx++];
+        startDownload(btn);
+        setTimeout(next, 800);
+      }
+      next();
+    }
+
+    /* ----- Delete Logic ----- */
+
+    function deleteFile(btn) {
+      const filePath = btn.dataset.filePath;
+      if (!filePath) return;
+
+      if (!confirm("Delete \"" + filePath.split(/[\\/]/).pop() + "\"?")) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-delete failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-delete success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-delete failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function deleteAllExtra(allBtn) {
+      if (!confirm("Delete ALL extra local files in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-delete:not(.success)");
+      allBtn.disabled = true;
+      allBtn.textContent = "🗑 Deleting...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All deleted";
+          return;
+        }
+        const btn = buttons[idx++];
+        /* Skip the confirm for bulk — already confirmed above */
+        const filePath = btn.dataset.filePath;
+        if (!filePath) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-delete failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-delete success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-delete failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
   </script>
 </body>
 </html>

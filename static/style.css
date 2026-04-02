@@ -463,3 +463,140 @@ thead th {
 .playlist-content {
   animation: rise-in 0.3s ease;
 }
+
+/* Download buttons */
+.dl-col {
+  width: 70px;
+  text-align: center;
+}
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.btn-download:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(74, 74, 74, 0.2);
+}
+
+.btn-download:disabled {
+  cursor: default;
+}
+
+.btn-download.downloading {
+  background: var(--info);
+  border-color: rgba(75, 95, 126, 0.4);
+  pointer-events: none;
+  position: relative;
+}
+
+.btn-download.downloading::after {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: dl-spin 0.7s linear infinite;
+}
+
+.btn-download.success {
+  background: var(--success);
+  border-color: rgba(85, 107, 47, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.btn-download.failed {
+  background: var(--error);
+  border-color: rgba(139, 0, 0, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.dl-na {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.btn-dl-all {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  padding: 7px 12px;
+}
+
+.btn-dl-all:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+@keyframes dl-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Delete buttons */
+.btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(139, 0, 0, 0.2);
+  border-radius: 4px;
+  background: var(--error);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.btn-delete:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(139, 0, 0, 0.2);
+}
+
+.btn-delete:disabled {
+  cursor: default;
+}
+
+.btn-delete.success {
+  background: var(--success);
+  border-color: rgba(85, 107, 47, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.btn-delete.failed {
+  background: #555;
+  border-color: rgba(85, 85, 85, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.btn-del-all {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  padding: 7px 12px;
+  background: var(--error);
+  color: #fff;
+}
+
+.btn-del-all:hover {
+  box-shadow: 0 8px 16px rgba(139, 0, 0, 0.2);
+}
+
+.btn-del-all:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
