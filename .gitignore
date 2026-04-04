@@ -4,4 +4,5 @@ __pycache__/
 exports/
 .exportify-profile/
 .streamlit/
-.playlist-checker-config.json
+config/playlist-checker-config.json
+logs/

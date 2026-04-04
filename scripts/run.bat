@@ -1,7 +1,8 @@
 @echo off
 REM Run Local Playlist Checker on Windows
+REM This script lives in scripts\ — step up to the project root first.
 
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
@@ -14,6 +15,6 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 echo Starting Local Playlist Checker...
-python app.py
+python run.py
 
 pause

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Run Local Playlist Checker on Linux/macOS
+# This script lives in scripts/ — step up to the project root first.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if [ -f ".venv/bin/activate" ]; then
     source .venv/bin/activate
@@ -13,4 +14,4 @@ else
 fi
 
 echo "Starting Local Playlist Checker..."
-python app.py
+python run.py
