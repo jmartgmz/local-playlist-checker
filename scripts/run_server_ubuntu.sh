@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Production-style launcher for Ubuntu server use.
 # - Forces DEBUG off
-# - Uses HOST/PORT from env if set, otherwise defaults to localhost:5301
+# - Uses HOST/PORT from env if set, otherwise defaults to 0.0.0.0:5301
 
 set -euo pipefail
 
@@ -17,7 +17,7 @@ else
 fi
 
 export DEBUG=false
-export HOST="${HOST:-127.0.0.1}"
+export HOST="${HOST:-0.0.0.0}"
 export PORT="${PORT:-5301}"
 
 echo "Starting Local Playlist Checker on ${HOST}:${PORT} (DEBUG=${DEBUG})"
