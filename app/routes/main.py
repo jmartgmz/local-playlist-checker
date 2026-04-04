@@ -111,18 +111,17 @@ def index() -> str:
                     if skipped:
                         flash("Skipped: " + ", ".join(skipped), "warning")
 
-                    if action == "sync_and_compare":
-                        if not music_root or not music_root.exists() or not music_root.is_dir():
-                            flash("Set a valid local music root folder first.", "error")
-                        else:
-                            results, total_missing, total_extra, total_duration_discrepancies = (
-                                build_comparison_results(
-                                    music_root=music_root,
-                                    export_dir=export_dir,
-                                    mapping=mapping,
-                                    duration_threshold_ms=duration_threshold_ms,
-                                )
+                    if not music_root or not music_root.exists() or not music_root.is_dir():
+                        flash("Set a valid local music root folder first.", "error")
+                    else:
+                        results, total_missing, total_extra, total_duration_discrepancies = (
+                            build_comparison_results(
+                                music_root=music_root,
+                                export_dir=export_dir,
+                                mapping=mapping,
+                                duration_threshold_ms=duration_threshold_ms,
                             )
+                        )
                 except (RuntimeError, TimeoutError, Error) as exc:
                     flash(str(exc), "warning")
 

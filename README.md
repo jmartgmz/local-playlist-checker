@@ -94,7 +94,14 @@ scripts\run.bat
 bash scripts/run.sh
 ```
 
-Open `http://127.0.0.1:5000` in your browser.
+For Ubuntu server usage with debug disabled:
+
+```bash
+chmod +x scripts/run_server_ubuntu.sh
+./scripts/run_server_ubuntu.sh
+```
+
+Open `http://localhost:5301` in your browser.
 
 ## Using the dashboard
 
