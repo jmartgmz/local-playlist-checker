@@ -4,17 +4,14 @@ from pathlib import Path
 from typing import Dict, List
 
 from flask import Blueprint, flash, render_template, request
-from playwright.sync_api import Error, TimeoutError
 
 from app.comparator import build_comparison_results
 from app.config import (
     DEFAULT_EXPORT_DIR,
-    DEFAULT_PROFILE_DIR,
     clamp_duration_threshold_seconds,
     load_saved_config,
     save_config,
 )
-from app.exportify import download_exportify_csvs
 from app.utils import (
     build_mapping,
     collect_discovered_folders,
@@ -32,17 +29,15 @@ def index() -> str:
     if request.method == "POST":
         music_root_input = request.form.get("music_root", str(saved_config.get("music_root", "")))
         export_dir_input = str(DEFAULT_EXPORT_DIR)
-        profile_dir_input = str(DEFAULT_PROFILE_DIR)
         overrides_input = request.form.get("overrides", str(saved_config.get("overrides", "")))
         selected_folders_raw = request.form.get("selected_folders", "")
-        silent_sync = request.form.get("silent_sync") == "on"
+        silent_sync = bool(saved_config.get("silent_sync", True))
         duration_threshold_seconds = clamp_duration_threshold_seconds(
             request.form.get("duration_threshold_seconds")
         )
     else:
         music_root_input = str(saved_config.get("music_root", ""))
         export_dir_input = str(DEFAULT_EXPORT_DIR)
-        profile_dir_input = str(DEFAULT_PROFILE_DIR)
         overrides_input = str(saved_config.get("overrides", ""))
         selected_config_obj = saved_config.get("selected_folders", [])
         selected_config_list = selected_config_obj if isinstance(selected_config_obj, list) else []
@@ -57,7 +52,6 @@ def index() -> str:
 
     music_root = Path(music_root_input).expanduser() if music_root_input.strip() else None
     export_dir = Path(export_dir_input).expanduser()
-    profile_dir = Path(profile_dir_input).expanduser()
     duration_threshold_ms = duration_threshold_seconds * 1000
 
     discovered_folders = collect_discovered_folders(music_root)
@@ -87,45 +81,7 @@ def index() -> str:
     total_duration_discrepancies = 0
 
     if request.method == "POST":
-        if action in ("sync", "sync_and_compare"):
-            if not mapping:
-                flash("No folder-to-playlist mappings selected.", "error")
-            else:
-                playlist_names = [playlist for _, playlist in mapping]
-                if silent_sync:
-                    flash("Running sync silently (headless browser).", "info")
-                else:
-                    flash(
-                        "Chromium will open. If needed, sign in to Spotify on Exportify and wait for playlists to load.",
-                        "info",
-                    )
-                try:
-                    downloaded, skipped = download_exportify_csvs(
-                        playlist_names=playlist_names,
-                        export_dir=export_dir,
-                        profile_dir=profile_dir,
-                        headless=silent_sync,
-                    )
-                    if downloaded:
-                        flash("Downloaded: " + ", ".join(downloaded), "success")
-                    if skipped:
-                        flash("Skipped: " + ", ".join(skipped), "warning")
-
-                    if not music_root or not music_root.exists() or not music_root.is_dir():
-                        flash("Set a valid local music root folder first.", "error")
-                    else:
-                        results, total_missing, total_extra, total_duration_discrepancies = (
-                            build_comparison_results(
-                                music_root=music_root,
-                                export_dir=export_dir,
-                                mapping=mapping,
-                                duration_threshold_ms=duration_threshold_ms,
-                            )
-                        )
-                except (RuntimeError, TimeoutError, Error) as exc:
-                    flash(str(exc), "warning")
-
-        elif action == "compare":
+        if action in ("sync", "sync_and_compare", "compare"):
             if not mapping:
                 flash("No folder-to-playlist mappings selected.", "error")
             elif not music_root or not music_root.exists() or not music_root.is_dir():
@@ -144,7 +100,6 @@ def index() -> str:
         "index.html",
         music_root=music_root_input,
         export_dir=export_dir_input,
-        profile_dir=profile_dir_input,
         discovered_folders=discovered_folders,
         selected_folders=selected_folders,
         selected_folders_raw=",".join(selected_folders),

@@ -36,11 +36,6 @@
           <label for="selected_folders">Playlist folders to track (comma-separated)</label>
           <input id="selected_folders" name="selected_folders" type="text" value="{{ selected_folders_raw }}" placeholder="OTAKU, Chill Vibes">
 
-          <label class="check-row" for="silent_sync">
-            <input id="silent_sync" name="silent_sync" type="checkbox" {% if silent_sync %}checked{% endif %}>
-            <span>Silent sync (headless browser)</span>
-          </label>
-
           <label for="duration_threshold_seconds">Duration mismatch threshold</label>
           <div class="range-row">
             <input
