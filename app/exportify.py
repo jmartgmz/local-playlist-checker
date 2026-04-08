@@ -66,6 +66,15 @@ def find_playlist_csv(export_dir: Path, playlist_name: str) -> Optional[Path]:
 
 def ensure_playlist_table_ready(page: Page, wait_seconds: int = 180, headless: bool = False) -> None:
     """Wait for Exportify playlists to load. Handles login detection and timeouts."""
+    # Check for and click "Get Started" button if present
+    try:
+        get_started = page.locator("button:has-text('Get Started')").first
+        if get_started.is_visible(timeout=2000):
+            get_started.click()
+            time.sleep(1)  # Brief pause after clicking
+    except Exception:
+        pass  # Button may not exist, continue
+    
     deadline = time.time() + wait_seconds
     startup_deadline = time.time() + 15  # Give 15 seconds for initial page load
     page_bootstrapped = False
