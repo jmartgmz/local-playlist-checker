@@ -88,11 +88,13 @@ def build_comparison_results(
     export_dir: Path,
     mapping: Sequence[Tuple[str, str]],
     duration_threshold_ms: int,
-) -> Tuple[List[Dict[str, object]], int, int, int]:
+) -> Tuple[List[Dict[str, object]], int, int, int, int, int]:
     results: List[Dict[str, object]] = []
     total_missing = 0
     total_extra = 0
     total_duration_discrepancies = 0
+    total_album_mismatches = 0
+    total_title_mismatches = 0
 
     for folder, playlist_name in mapping:
         local_folder = music_root / folder
@@ -108,6 +110,8 @@ def build_comparison_results(
             "missing": [],
             "extra": [],
             "duration_discrepancies": [],
+            "album_mismatches": [],
+            "title_mismatches": [],
             "error": None,
         }
 
@@ -127,10 +131,40 @@ def build_comparison_results(
             ),
         )
         duration_discrepancies: List[Dict[str, str]] = []
+        album_mismatches: List[Dict[str, str]] = []
+        title_mismatches: List[Dict[str, str]] = []
         for local_track, playlist_track, match_quality in matched_pairs:
             # Duration checks are noisy for title-only fallback matches.
             if match_quality != "artist":
                 continue
+            
+            from app.utils import normalize_text
+            
+            # Check for Album Mismatch
+            if local_track.album and playlist_track.album:
+                if normalize_text(local_track.album) != normalize_text(playlist_track.album):
+                    album_mismatches.append(
+                        {
+                            "title": playlist_track.title,
+                            "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
+                            "source": local_track.source,
+                            "local_album": local_track.album,
+                            "spotify_album": playlist_track.album,
+                        }
+                    )
+                    
+            # Check for Title Mismatch
+            if local_track.metadata_title and playlist_track.title:
+                if normalize_text(local_track.metadata_title) != normalize_text(playlist_track.title):
+                    title_mismatches.append(
+                        {
+                            "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
+                            "source": local_track.source,
+                            "local_title": local_track.metadata_title,
+                            "spotify_title": playlist_track.title,
+                        }
+                    )
+            
             if local_track.duration_ms is None or playlist_track.duration_ms is None:
                 continue
             delta_ms = abs(local_track.duration_ms - playlist_track.duration_ms)
@@ -152,17 +186,37 @@ def build_comparison_results(
                 row["title"].casefold(),
             )
         )
+        album_mismatches.sort(
+            key=lambda row: (
+                row["artists"].casefold() == "unknown",
+                row["artists"].casefold(),
+                row["title"].casefold(),
+            )
+        )
+        title_mismatches.sort(
+            key=lambda row: (
+                row["artists"].casefold() == "unknown",
+                row["artists"].casefold(),
+                row["spotify_title"].casefold(),
+            )
+        )
 
         total_missing += len(missing)
         total_extra += len(extra)
         total_duration_discrepancies += len(duration_discrepancies)
+        total_album_mismatches += len(album_mismatches)
+        total_title_mismatches += len(title_mismatches)
 
         entry["missing"] = [track_to_row(track, folder=folder) for track in sorted_missing]
         entry["extra"] = [track_to_row(track) for track in extra]
         entry["duration_discrepancies"] = duration_discrepancies
+        entry["album_mismatches"] = album_mismatches
+        entry["title_mismatches"] = title_mismatches
         entry["missing_count"] = len(missing)
         entry["extra_count"] = len(extra)
         entry["duration_discrepancy_count"] = len(duration_discrepancies)
+        entry["album_mismatch_count"] = len(album_mismatches)
+        entry["title_mismatch_count"] = len(title_mismatches)
         results.append(entry)
 
-    return results, total_missing, total_extra, total_duration_discrepancies
+    return results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches

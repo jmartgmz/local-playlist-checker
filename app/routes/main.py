@@ -79,6 +79,8 @@ def index() -> str:
     total_missing = 0
     total_extra = 0
     total_duration_discrepancies = 0
+    total_album_mismatches = 0
+    total_title_mismatches = 0
 
     if request.method == "POST":
         if action in ("sync", "sync_and_compare", "compare"):
@@ -87,7 +89,7 @@ def index() -> str:
             elif not music_root or not music_root.exists() or not music_root.is_dir():
                 flash("Set a valid local music root folder first.", "error")
             else:
-                results, total_missing, total_extra, total_duration_discrepancies = build_comparison_results(
+                results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches = build_comparison_results(
                     music_root=music_root,
                     export_dir=export_dir,
                     mapping=mapping,
@@ -110,6 +112,8 @@ def index() -> str:
         total_missing=total_missing,
         total_extra=total_extra,
         total_duration_discrepancies=total_duration_discrepancies,
+        total_album_mismatches=total_album_mismatches,
+        total_title_mismatches=total_title_mismatches,
     )
 
 

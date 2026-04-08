@@ -26,6 +26,7 @@ def read_exportify_csv(csv_path: Path) -> List[Track]:
                 (row.get("Track Duration (ms)") or row.get("Duration (ms)") or row.get("Track Duration") or "").strip()
             )
             spotify_uri = (row.get("Track URI") or "").strip()
+            album = (row.get("Album Name") or "").strip()
             if title:
                 rows.append(
                     Track(
@@ -34,6 +35,7 @@ def read_exportify_csv(csv_path: Path) -> List[Track]:
                         source=csv_path.name,
                         duration_ms=duration_ms,
                         spotify_uri=spotify_uri,
+                        album=album,
                     )
                 )
     return rows

@@ -12,6 +12,8 @@ class Track:
     duration_ms: Optional[int] = None
     spotify_uri: Optional[str] = None
     file_path: Optional[str] = None
+    album: Optional[str] = None
+    metadata_title: Optional[str] = None
 
     @property
     def normalized_title(self) -> str:
