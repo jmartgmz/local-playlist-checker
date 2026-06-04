@@ -48,7 +48,7 @@ def _run_spotiflac_download(job_id: str, spotify_url: str, output_dir: str) -> N
             spotiflac_download(
                 url=spotify_url,
                 output_dir=output_dir,
-                services=["tidal", "spoti", "qobuz", "amazon", "youtube"],
+                services=["tidal", "spoti", "qobuz", "amazon", "apple", "youtube"],
                 filename_format="{artist} - {title}",
             )
         download_jobs[job_id]["status"] = "complete"
