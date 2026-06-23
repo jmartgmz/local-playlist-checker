@@ -14,6 +14,9 @@ class Track:
     file_path: Optional[str] = None
     album: Optional[str] = None
     metadata_title: Optional[str] = None
+    metadata_artists: Optional[List[str]] = None
+    metadata_artists_raw: Optional[str] = None
+    has_navidrome_artists: bool = False
 
     @property
     def normalized_title(self) -> str:

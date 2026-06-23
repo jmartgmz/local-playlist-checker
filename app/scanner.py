@@ -9,19 +9,22 @@ from app.models import Track
 from app.utils import parse_artists
 
 
-def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Optional[str]]:
+def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Optional[str], Optional[List[str]], Optional[str], bool]:
     duration_ms = None
     album = None
     metadata_title = None
+    metadata_artists: Optional[List[str]] = None
+    metadata_artists_raw: Optional[str] = None
+    has_navidrome_artists: bool = False
     try:
         mutagen_file = __import__("mutagen", fromlist=["File"]).File
     except Exception:
-        return None, None
+        return None, None, None, None, None, False
 
     try:
         metadata = mutagen_file(path)
     except Exception:
-        return None, None
+        return None, None, None, None, None
 
     if metadata is not None and getattr(metadata, "info", None):
         length_seconds = getattr(metadata.info, "length", None)
@@ -48,8 +51,29 @@ def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Opti
             elif "\xa9nam" in tags:
                 metadata_title = str(tags["\xa9nam"][0]) if isinstance(tags["\xa9nam"], list) else str(tags["\xa9nam"])
 
+            # Read artist metadata
+            artist_raw = None
+            if "artist" in tags:
+                artist_raw = str(tags["artist"][0]) if isinstance(tags["artist"], list) else str(tags["artist"])
+            elif "TPE1" in tags:
+                artist_raw = str(tags["TPE1"].text[0]) if hasattr(tags["TPE1"], "text") and tags["TPE1"].text else str(tags["TPE1"])
+            elif "\xa9ART" in tags:
+                artist_raw = str(tags["\xa9ART"][0]) if isinstance(tags["\xa9ART"], list) else str(tags["\xa9ART"])
+            if artist_raw:
+                metadata_artists = parse_artists(artist_raw)
+                metadata_artists_raw = artist_raw
 
-    return duration_ms, album, metadata_title
+            # Check for Navidrome multi-artist tags
+            has_navidrome = False
+            suffix = path.suffix.lower()
+            if suffix == ".flac" or (hasattr(metadata, "tags") and isinstance(metadata.tags, dict)):
+                has_navidrome = "artists" in tags
+            elif suffix == ".mp3":
+                has_navidrome = "TXXX:ARTISTS" in tags
+            else:
+                has_navidrome = True
+
+    return duration_ms, album, metadata_title, metadata_artists, metadata_artists_raw, has_navidrome
 
 
 def parse_local_filename(path: Path) -> Track:
@@ -66,7 +90,7 @@ def parse_local_filename(path: Path) -> Track:
         title = stem.strip()
         artists = []
 
-    duration_ms, album, metadata_title = probe_audio_metadata(path)
+    duration_ms, album, metadata_title, metadata_artists, metadata_artists_raw, has_navidrome = probe_audio_metadata(path)
 
     return Track(
         title=title,
@@ -75,6 +99,9 @@ def parse_local_filename(path: Path) -> Track:
         duration_ms=duration_ms,
         album=album,
         metadata_title=metadata_title,
+        metadata_artists=metadata_artists,
+        metadata_artists_raw=metadata_artists_raw,
+        has_navidrome_artists=has_navidrome,
         file_path=str(path),
     )
 

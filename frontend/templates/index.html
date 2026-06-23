@@ -77,7 +77,7 @@
     {% if results %}
       <section class="card summary-card">
         <h2>Overall Summary</h2>
-        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;">
           <div class="metric">
             <span class="label">Total Missing Locally</span>
             <strong>{{ total_missing }}</strong>
@@ -98,11 +98,15 @@
             <span class="label">Title Mismatches</span>
             <strong>{{ total_title_mismatches }}</strong>
           </div>
+          <div class="metric">
+            <span class="label">Artist Mismatches</span>
+            <strong>{{ total_artist_mismatches }}</strong>
+          </div>
         </div>
       </section>
 
       {% for section in results %}
-        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 and section.album_mismatch_count == 0 and section.title_mismatch_count == 0 %}
+        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 and section.album_mismatch_count == 0 and section.title_mismatch_count == 0 and section.artist_mismatch_count == 0 %}
         <section class="card playlist-card {% if is_clean %}collapsed{% endif %}" data-playlist="{{ section.playlist_name }}">
           <div class="playlist-header" onclick="this.parentElement.classList.toggle('collapsed')">
             <h2>{{ section.playlist_name }}</h2>
@@ -116,7 +120,7 @@
             {% if section.error %}
               <div class="flash error">{{ section.error }}</div>
             {% else %}
-              <div class="summary-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;">
+              <div class="summary-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1rem;">
                 <div class="metric">
                   <span class="label">Local Tracks Found</span>
                   <strong>{{ section.local_count }}</strong>
@@ -140,6 +144,10 @@
                 <div class="metric">
                   <span class="label">Title Mismatches</span>
                   <strong>{{ section.title_mismatch_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Artist Mismatches</span>
+                  <strong>{{ section.artist_mismatch_count }}</strong>
                 </div>
               </div>
 
@@ -261,24 +269,40 @@
               <div>
                 <h3>Album Mismatches</h3>
                 {% if section.album_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllAlbums(this)">🔧 Fix All Albums</button>
                   <table>
                     <thead>
                       <tr>
-                        <th>Artists</th>
                         <th>Track</th>
+                        <th>Artists</th>
                         <th>Source</th>
                         <th>Local Album</th>
                         <th>Spotify Album</th>
+                        <th class="dl-col">Fix</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for track in section.album_mismatches %}
                         <tr>
-                          <td>{{ track.artists }}</td>
                           <td>{{ track.title }}</td>
+                          <td>{{ track.artists }}</td>
                           <td>{{ track.source }}</td>
                           <td>{{ track.local_album }}</td>
                           <td>{{ track.spotify_album }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-new-album="{{ track.spotify_album }}"
+                                onclick="fixAlbum(this)"
+                                title="Fix album tag to: {{ track.spotify_album }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
                         </tr>
                       {% endfor %}
                     </tbody>
@@ -291,6 +315,7 @@
               <div>
                 <h3>Title Mismatches</h3>
                 {% if section.title_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllTitles(this)">🔧 Fix All Titles</button>
                   <table>
                     <thead>
                       <tr>
@@ -298,6 +323,7 @@
                         <th>Source</th>
                         <th>Local Title</th>
                         <th>Spotify Title</th>
+                        <th class="dl-col">Fix</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -307,12 +333,71 @@
                           <td>{{ track.source }}</td>
                           <td>{{ track.local_title }}</td>
                           <td>{{ track.spotify_title }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-new-title="{{ track.spotify_title }}"
+                                onclick="fixTitle(this)"
+                                title="Fix title tag to: {{ track.spotify_title }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
                         </tr>
                       {% endfor %}
                     </tbody>
                   </table>
                 {% else %}
                   <p class="ok">No title mismatches detected for matched tracks.</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <h3>Artist Mismatches (Scrobble)</h3>
+                {% if section.artist_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllArtists(this)">🔧 Fix All Artists</button>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Track</th>
+                        <th>Source</th>
+                        <th>Current Metadata Artist</th>
+                        <th>Recommended Artist</th>
+                        <th class="dl-col">Fix</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.artist_mismatches %}
+                        <tr>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.source }}</td>
+                          <td>{{ track.local_artists }}</td>
+                          <td>{{ track.recommended_artist }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-display-artist="{{ track.display_artist }}"
+                                data-all-artists="{{ track.all_spotify_artists | join('|') }}"
+                                onclick="fixArtist(this)"
+                                title="Fix artist tag for Navidrome: {{ track.display_artist }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">No artist mismatches detected for matched tracks.</p>
                 {% endif %}
               </div>
             {% endif %}
@@ -490,6 +575,260 @@
           })
           .catch(() => {
             btn.className = "btn-delete failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Fix Artist Logic ----- */
+
+    function fixArtist(btn) {
+      const filePath = btn.dataset.filePath;
+      const displayArtist = btn.dataset.displayArtist;
+      const allArtists = btn.dataset.allArtists ? btn.dataset.allArtists.split('|') : [];
+      if (!filePath || !displayArtist) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_artist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, display_artist: displayArtist, all_artists: allArtists }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllArtists(allBtn) {
+      if (!confirm("Fix ALL artist tags in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Fixing...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All fixed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const displayArtist = btn.dataset.displayArtist;
+        const allArtists = btn.dataset.allArtists ? btn.dataset.allArtists.split('|') : [];
+        if (!filePath || !displayArtist) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_artist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, display_artist: displayArtist, all_artists: allArtists }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Fix Title Logic ----- */
+
+    function fixTitle(btn) {
+      const filePath = btn.dataset.filePath;
+      const newTitle = btn.dataset.newTitle;
+      if (!filePath || !newTitle) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, new_title: newTitle }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllTitles(allBtn) {
+      if (!confirm("Fix ALL title tags in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)[data-new-title]");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Fixing...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All fixed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const newTitle = btn.dataset.newTitle;
+        if (!filePath || !newTitle) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, new_title: newTitle }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Fix Album Logic ----- */
+
+    function fixAlbum(btn) {
+      const filePath = btn.dataset.filePath;
+      const newAlbum = btn.dataset.newAlbum;
+      if (!filePath || !newAlbum) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_album", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, new_album: newAlbum }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllAlbums(allBtn) {
+      if (!confirm("Fix ALL album tags in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)[data-new-album]");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Fixing...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All fixed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const newAlbum = btn.dataset.newAlbum;
+        if (!filePath || !newAlbum) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_album", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, new_album: newAlbum }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
             btn.textContent = "✗";
             setTimeout(next, 300);
           });

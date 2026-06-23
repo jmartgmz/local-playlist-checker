@@ -88,13 +88,14 @@ def build_comparison_results(
     export_dir: Path,
     mapping: Sequence[Tuple[str, str]],
     duration_threshold_ms: int,
-) -> Tuple[List[Dict[str, object]], int, int, int, int, int]:
+) -> Tuple[List[Dict[str, object]], int, int, int, int, int, int]:
     results: List[Dict[str, object]] = []
     total_missing = 0
     total_extra = 0
     total_duration_discrepancies = 0
     total_album_mismatches = 0
     total_title_mismatches = 0
+    total_artist_mismatches = 0
 
     for folder, playlist_name in mapping:
         local_folder = music_root / folder
@@ -112,6 +113,7 @@ def build_comparison_results(
             "duration_discrepancies": [],
             "album_mismatches": [],
             "title_mismatches": [],
+            "artist_mismatches": [],
             "error": None,
         }
 
@@ -133,6 +135,7 @@ def build_comparison_results(
         duration_discrepancies: List[Dict[str, str]] = []
         album_mismatches: List[Dict[str, str]] = []
         title_mismatches: List[Dict[str, str]] = []
+        artist_mismatches: List[Dict[str, str]] = []
         for local_track, playlist_track, match_quality in matched_pairs:
             # Duration checks are noisy for title-only fallback matches.
             if match_quality != "artist":
@@ -150,6 +153,7 @@ def build_comparison_results(
                             "source": local_track.source,
                             "local_album": local_track.album,
                             "spotify_album": playlist_track.album,
+                            "file_path": local_track.file_path or "",
                         }
                     )
                     
@@ -162,6 +166,34 @@ def build_comparison_results(
                             "source": local_track.source,
                             "local_title": local_track.metadata_title,
                             "spotify_title": playlist_track.title,
+                            "file_path": local_track.file_path or "",
+                        }
+                    )
+
+            # Check for Artist Mismatch (Navidrome multi-artist tags)
+            # The correct approach for FLAC is:
+            #   ARTIST  = display name (e.g. "Kanye West, PARTYNEXTDOOR")
+            #   ARTISTS = individual entries (one per artist)
+            if local_track.metadata_artists and playlist_track.artists:
+                spotify_display = ", ".join(playlist_track.artists)
+                local_set = {normalize_text(a) for a in local_track.metadata_artists}
+                spotify_set = {normalize_text(a) for a in playlist_track.artists}
+
+                # Flag if the parsed metadata artists don't match exactly (spelling/missing artists),
+                # or if the raw display string doesn't match Spotify's formatting.
+                # OR if the file lacks the multi-valued ARTISTS tags needed for Navidrome.
+                if (local_set != spotify_set 
+                    or normalize_text(local_track.metadata_artists_raw) != normalize_text(spotify_display)
+                    or not local_track.has_navidrome_artists):
+                    artist_mismatches.append(
+                        {
+                            "title": playlist_track.title,
+                            "source": local_track.source,
+                            "local_artists": local_track.metadata_artists_raw,
+                            "recommended_artist": spotify_display,
+                            "all_spotify_artists": playlist_track.artists,
+                            "display_artist": spotify_display,
+                            "file_path": local_track.file_path or "",
                         }
                     )
             
@@ -200,23 +232,32 @@ def build_comparison_results(
                 row["spotify_title"].casefold(),
             )
         )
+        artist_mismatches.sort(
+            key=lambda row: (
+                row["recommended_artist"].casefold(),
+                row["title"].casefold(),
+            )
+        )
 
         total_missing += len(missing)
         total_extra += len(extra)
         total_duration_discrepancies += len(duration_discrepancies)
         total_album_mismatches += len(album_mismatches)
         total_title_mismatches += len(title_mismatches)
+        total_artist_mismatches += len(artist_mismatches)
 
         entry["missing"] = [track_to_row(track, folder=folder) for track in sorted_missing]
         entry["extra"] = [track_to_row(track) for track in extra]
         entry["duration_discrepancies"] = duration_discrepancies
         entry["album_mismatches"] = album_mismatches
         entry["title_mismatches"] = title_mismatches
+        entry["artist_mismatches"] = artist_mismatches
         entry["missing_count"] = len(missing)
         entry["extra_count"] = len(extra)
         entry["duration_discrepancy_count"] = len(duration_discrepancies)
         entry["album_mismatch_count"] = len(album_mismatches)
         entry["title_mismatch_count"] = len(title_mismatches)
+        entry["artist_mismatch_count"] = len(artist_mismatches)
         results.append(entry)
 
-    return results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches
+    return results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches, total_artist_mismatches

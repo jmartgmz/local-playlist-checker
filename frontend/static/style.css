@@ -600,3 +600,59 @@ thead th {
   opacity: 0.7;
   cursor: default;
 }
+
+/* Fix artist buttons */
+.btn-fix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(75, 95, 126, 0.2);
+  border-radius: 4px;
+  background: var(--info);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+}
+
+.btn-fix:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(75, 95, 126, 0.2);
+}
+
+.btn-fix:disabled {
+  cursor: default;
+}
+
+.btn-fix.success {
+  background: var(--success);
+  border-color: rgba(85, 107, 47, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.btn-fix.failed {
+  background: var(--error);
+  border-color: rgba(139, 0, 0, 0.3);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.btn-fix-all {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+  padding: 7px 12px;
+  background: var(--info);
+  color: #fff;
+}
+
+.btn-fix-all:hover {
+  box-shadow: 0 8px 16px rgba(75, 95, 126, 0.2);
+}
+
+.btn-fix-all:disabled {
+  opacity: 0.7;
+  cursor: default;
+}

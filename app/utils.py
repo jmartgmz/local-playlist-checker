@@ -24,11 +24,28 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/:*?"<>|]', "", name).strip().replace(" ", "_")
 
 
+KNOWN_COMMA_ARTISTS = [
+    "Tyler, The Creator",
+    "Earth, Wind & Fire",
+    "Crosby, Stills, Nash & Young",
+    "Emerson, Lake & Palmer",
+    "Blood, Sweat & Tears",
+]
+
 def parse_artists(value: str) -> List[str]:
     if not value:
         return []
+        
+    # Temporarily hide commas in known artists so they don't get split
+    placeholder = "___COMMA___"
+    for known in KNOWN_COMMA_ARTISTS:
+        if known.lower() in value.lower():
+            safe_known = known.replace(",", placeholder)
+            value = re.sub(re.escape(known), safe_known, value, flags=re.IGNORECASE)
+
     parts = re.split(r";|,|\band\b|\bwith\b|\bx\b", value, flags=re.IGNORECASE)
-    return [part.strip() for part in parts if part.strip()]
+    
+    return [part.strip().replace(placeholder, ",") for part in parts if part.strip()]
 
 
 def parse_duration_to_ms(value: str) -> Optional[int]:
