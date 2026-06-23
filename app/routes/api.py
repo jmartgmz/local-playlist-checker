@@ -308,3 +308,48 @@ def fix_album():
 
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@api_bp.route("/fix_filename", methods=["POST"])
+def fix_filename():
+    """Rename a local audio file to match the expected Spotify-derived filename."""
+    data = request.get_json(silent=True) or {}
+    file_path = (data.get("file_path") or "").strip()
+    new_filename = (data.get("new_filename") or "").strip()
+
+    if not file_path:
+        return jsonify({"error": "Missing file_path"}), 400
+    if not new_filename:
+        return jsonify({"error": "Missing new_filename"}), 400
+
+    saved_config = load_saved_config()
+    music_root = str(saved_config.get("music_root", ""))
+    if not music_root:
+        return jsonify({"error": "No music root configured"}), 400
+
+    target = Path(file_path).resolve()
+    root = Path(music_root).expanduser().resolve()
+
+    if not str(target).startswith(str(root)):
+        return jsonify({"error": "Path is outside music root"}), 403
+
+    if not target.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    if target.suffix.lower() not in AUDIO_EXTENSIONS:
+        return jsonify({"error": "Not an audio file"}), 400
+
+    new_path = target.parent / new_filename
+
+    if new_path.exists() and new_path != target:
+        return jsonify({"error": f"Target file already exists: {new_filename}"}), 409
+
+    try:
+        target.rename(new_path)
+        return jsonify({
+            "status": "renamed",
+            "old_file": str(target),
+            "new_file": str(new_path),
+        })
+    except OSError as exc:
+        return jsonify({"error": str(exc)}), 500

@@ -8,7 +8,7 @@ from app.config import LARGE_DURATION_DISCREPANCY_MS
 from app.exportify import find_playlist_csv, read_exportify_csv
 from app.models import Track
 from app.scanner import scan_local_tracks
-from app.utils import format_duration_ms, track_to_row
+from app.utils import build_expected_filename, format_duration_ms, track_to_row
 
 
 def artists_overlap(local_track: Track, playlist_track: Track) -> bool:
@@ -88,7 +88,7 @@ def build_comparison_results(
     export_dir: Path,
     mapping: Sequence[Tuple[str, str]],
     duration_threshold_ms: int,
-) -> Tuple[List[Dict[str, object]], int, int, int, int, int, int]:
+) -> Tuple[List[Dict[str, object]], int, int, int, int, int, int, int]:
     results: List[Dict[str, object]] = []
     total_missing = 0
     total_extra = 0
@@ -96,6 +96,7 @@ def build_comparison_results(
     total_album_mismatches = 0
     total_title_mismatches = 0
     total_artist_mismatches = 0
+    total_filename_mismatches = 0
 
     for folder, playlist_name in mapping:
         local_folder = music_root / folder
@@ -114,6 +115,7 @@ def build_comparison_results(
             "album_mismatches": [],
             "title_mismatches": [],
             "artist_mismatches": [],
+            "filename_mismatches": [],
             "error": None,
         }
 
@@ -136,9 +138,11 @@ def build_comparison_results(
         album_mismatches: List[Dict[str, str]] = []
         title_mismatches: List[Dict[str, str]] = []
         artist_mismatches: List[Dict[str, str]] = []
+        filename_mismatches: List[Dict[str, str]] = []
         for local_track, playlist_track, match_quality in matched_pairs:
-            # Duration checks are noisy for title-only fallback matches.
-            if match_quality == "artist":
+            # Duration checks are noisy for title-only fallback matches,
+            # but still run them when artists normalize to empty (e.g. ".........").
+            if match_quality == "artist" or not local_track.normalized_artists:
                 if local_track.duration_ms is not None and playlist_track.duration_ms is not None:
                     delta_ms = abs(local_track.duration_ms - playlist_track.duration_ms)
                     if delta_ms > duration_threshold_ms:
@@ -147,9 +151,9 @@ def build_comparison_results(
                                 "title": playlist_track.title,
                                 "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
                                 "source": local_track.source,
-                                "local_duration_ms": local_track.duration_ms,
-                                "spotify_duration_ms": playlist_track.duration_ms,
-                                "delta_ms": delta_ms,
+                                "local_duration": format_duration_ms(local_track.duration_ms),
+                                "spotify_duration": format_duration_ms(playlist_track.duration_ms),
+                                "difference": format_duration_ms(delta_ms),
                                 "file_path": local_track.file_path or "",
                             }
                         )
@@ -196,7 +200,7 @@ def build_comparison_results(
                 # or if the raw display string doesn't match Spotify's formatting.
                 # OR if the file lacks the multi-valued ARTISTS tags needed for Navidrome.
                 if (local_set != spotify_set 
-                    or normalize_text(local_track.metadata_artists_raw) != normalize_text(spotify_display)
+                    or local_track.metadata_artists_raw.strip() != spotify_display.strip()
                     or not local_track.has_navidrome_artists):
                     artist_mismatches.append(
                         {
@@ -207,6 +211,27 @@ def build_comparison_results(
                             "all_spotify_artists": playlist_track.artists,
                             "display_artist": spotify_display,
                             "file_path": local_track.file_path or "",
+                        }
+                    )
+
+            # Check for Filename Mismatch
+            if local_track.file_path and playlist_track.artists and playlist_track.title:
+                import re as _re
+                actual_path = Path(local_track.file_path)
+                actual_stem = actual_path.stem
+                # Strip leading track numbers (e.g. "01 - ", "1. ", "03_")
+                clean_stem = _re.sub(r"^\d{1,3}[\s._-]+", "", actual_stem)
+                spotify_display = ", ".join(playlist_track.artists)
+                expected_stem = build_expected_filename(spotify_display, playlist_track.title)
+                if clean_stem != expected_stem:
+                    filename_mismatches.append(
+                        {
+                            "title": playlist_track.title,
+                            "artists": spotify_display,
+                            "source": local_track.source,
+                            "current_filename": actual_path.name,
+                            "expected_filename": expected_stem + actual_path.suffix,
+                            "file_path": local_track.file_path,
                         }
                     )
             
@@ -237,6 +262,12 @@ def build_comparison_results(
                 row["title"].casefold(),
             )
         )
+        filename_mismatches.sort(
+            key=lambda row: (
+                row["artists"].casefold(),
+                row["title"].casefold(),
+            )
+        )
 
         total_missing += len(missing)
         total_extra += len(extra)
@@ -244,6 +275,7 @@ def build_comparison_results(
         total_album_mismatches += len(album_mismatches)
         total_title_mismatches += len(title_mismatches)
         total_artist_mismatches += len(artist_mismatches)
+        total_filename_mismatches += len(filename_mismatches)
 
         entry["missing"] = [track_to_row(track, folder=folder) for track in sorted_missing]
         entry["extra"] = [track_to_row(track) for track in extra]
@@ -251,12 +283,14 @@ def build_comparison_results(
         entry["album_mismatches"] = album_mismatches
         entry["title_mismatches"] = title_mismatches
         entry["artist_mismatches"] = artist_mismatches
+        entry["filename_mismatches"] = filename_mismatches
         entry["missing_count"] = len(missing)
         entry["extra_count"] = len(extra)
         entry["duration_discrepancy_count"] = len(duration_discrepancies)
         entry["album_mismatch_count"] = len(album_mismatches)
         entry["title_mismatch_count"] = len(title_mismatches)
         entry["artist_mismatch_count"] = len(artist_mismatches)
+        entry["filename_mismatch_count"] = len(filename_mismatches)
         results.append(entry)
 
-    return results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches, total_artist_mismatches
+    return results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches, total_artist_mismatches, total_filename_mismatches

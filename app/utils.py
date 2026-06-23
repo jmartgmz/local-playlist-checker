@@ -24,6 +24,34 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/:*?"<>|]', "", name).strip().replace(" ", "_")
 
 
+# Map of Windows-illegal characters to visually similar Unicode replacements.
+# These are the same substitutions the user already applies by hand.
+FILENAME_CHAR_REPLACEMENTS: Dict[str, str] = {
+    "/": " \u2044 ",  # ⁄  fraction slash (padded with spaces)
+    ":": "\ua789",   # ꞉  modifier letter colon
+    "?": "\uff1f",   # ？ fullwidth question mark
+    ">": "\u02c3",   # ˃  modifier letter right arrowhead
+    "<": "\u02c2",   # ˂  modifier letter left arrowhead
+    '"': "\u201c",   # "  left double quotation mark
+    "|": "\u2502",   # │  box drawings light vertical
+    "*": "\u2217",   # ∗  asterisk operator
+    "\\": "\u29f5",  # ⧵  reverse solidus operator
+}
+
+
+def sanitize_filename_for_os(name: str) -> str:
+    """Replace Windows-illegal characters with Unicode look-alike substitutes."""
+    for illegal, safe in FILENAME_CHAR_REPLACEMENTS.items():
+        name = name.replace(illegal, safe)
+    return name.strip()
+
+
+def build_expected_filename(artist_display: str, title: str) -> str:
+    """Build the expected filename stem: 'Artist - Title' with OS-safe characters."""
+    raw = f"{artist_display} - {title}"
+    return sanitize_filename_for_os(raw)
+
+
 KNOWN_COMMA_ARTISTS = [
     "Tyler, The Creator",
     "Earth, Wind & Fire",
