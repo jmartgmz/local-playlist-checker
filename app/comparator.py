@@ -219,21 +219,23 @@ def build_comparison_results(
                 import re as _re
                 actual_path = Path(local_track.file_path)
                 actual_stem = actual_path.stem
-                # Strip leading track numbers (e.g. "01 - ", "1. ", "03_")
-                clean_stem = _re.sub(r"^\d{1,3}[\s._-]+", "", actual_stem)
                 spotify_display = ", ".join(playlist_track.artists)
                 expected_stem = build_expected_filename(spotify_display, playlist_track.title)
-                if clean_stem != expected_stem:
-                    filename_mismatches.append(
-                        {
-                            "title": playlist_track.title,
-                            "artists": spotify_display,
-                            "source": local_track.source,
-                            "current_filename": actual_path.name,
-                            "expected_filename": expected_stem + actual_path.suffix,
-                            "file_path": local_track.file_path,
-                        }
-                    )
+                
+                if actual_stem != expected_stem:
+                    # Try stripping leading track numbers (e.g. "01 - ", "1. ", "03_")
+                    clean_stem = _re.sub(r"^\d{1,3}[\s._-]+", "", actual_stem)
+                    if clean_stem != expected_stem:
+                        filename_mismatches.append(
+                            {
+                                "title": playlist_track.title,
+                                "artists": spotify_display,
+                                "source": local_track.source,
+                                "current_filename": actual_path.name,
+                                "expected_filename": expected_stem + actual_path.suffix,
+                                "file_path": local_track.file_path,
+                            }
+                        )
             
         duration_discrepancies.sort(
             key=lambda row: (
