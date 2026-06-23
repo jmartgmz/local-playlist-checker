@@ -138,14 +138,27 @@ def build_comparison_results(
         artist_mismatches: List[Dict[str, str]] = []
         for local_track, playlist_track, match_quality in matched_pairs:
             # Duration checks are noisy for title-only fallback matches.
-            if match_quality != "artist":
-                continue
+            if match_quality == "artist":
+                if local_track.duration_ms is not None and playlist_track.duration_ms is not None:
+                    delta_ms = abs(local_track.duration_ms - playlist_track.duration_ms)
+                    if delta_ms > duration_threshold_ms:
+                        duration_discrepancies.append(
+                            {
+                                "title": playlist_track.title,
+                                "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
+                                "source": local_track.source,
+                                "local_duration_ms": local_track.duration_ms,
+                                "spotify_duration_ms": playlist_track.duration_ms,
+                                "delta_ms": delta_ms,
+                                "file_path": local_track.file_path or "",
+                            }
+                        )
             
             from app.utils import normalize_text
             
             # Check for Album Mismatch
             if local_track.album and playlist_track.album:
-                if normalize_text(local_track.album) != normalize_text(playlist_track.album):
+                if local_track.album.strip() != playlist_track.album.strip():
                     album_mismatches.append(
                         {
                             "title": playlist_track.title,
@@ -159,7 +172,7 @@ def build_comparison_results(
                     
             # Check for Title Mismatch
             if local_track.metadata_title and playlist_track.title:
-                if normalize_text(local_track.metadata_title) != normalize_text(playlist_track.title):
+                if local_track.metadata_title.strip() != playlist_track.title.strip():
                     title_mismatches.append(
                         {
                             "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
@@ -197,20 +210,6 @@ def build_comparison_results(
                         }
                     )
             
-            if local_track.duration_ms is None or playlist_track.duration_ms is None:
-                continue
-            delta_ms = abs(local_track.duration_ms - playlist_track.duration_ms)
-            if delta_ms >= duration_threshold_ms:
-                duration_discrepancies.append(
-                    {
-                        "title": playlist_track.title,
-                        "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
-                        "source": local_track.source,
-                        "local_duration": format_duration_ms(local_track.duration_ms),
-                        "spotify_duration": format_duration_ms(playlist_track.duration_ms),
-                        "difference": format_duration_ms(delta_ms),
-                    }
-                )
         duration_discrepancies.sort(
             key=lambda row: (
                 row["artists"].casefold() == "unknown",
