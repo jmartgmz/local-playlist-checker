@@ -249,8 +249,8 @@ def build_comparison_results(
             #   ARTISTS = individual entries (one per artist)
             if local_track.metadata_artists and playlist_track.artists:
                 spotify_display = ", ".join(playlist_track.artists)
-                local_set = {normalize_text(a) for a in local_track.metadata_artists}
-                spotify_set = {normalize_text(a) for a in playlist_track.artists}
+                local_set = {normalize_text(a, strip_parens=False) for a in local_track.metadata_artists}
+                spotify_set = {normalize_text(a, strip_parens=False) for a in playlist_track.artists}
 
                 # Flag if the parsed metadata artists don't match exactly (spelling/missing artists),
                 # or if the raw display string doesn't match Spotify's formatting.

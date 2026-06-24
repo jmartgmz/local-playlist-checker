@@ -26,4 +26,4 @@ class Track:
     @property
     def normalized_artists(self) -> List[str]:
         from app.utils import normalize_text
-        return [normalize_text(artist) for artist in self.artists if normalize_text(artist)]
+        return [normalize_text(artist, strip_parens=False) for artist in self.artists if normalize_text(artist, strip_parens=False)]

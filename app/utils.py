@@ -7,9 +7,10 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from app.config import EXCLUDED_DISCOVERED_FOLDERS
 
 
-def normalize_text(value: str) -> str:
+def normalize_text(value: str, *, strip_parens: bool = True) -> str:
     value = value.lower().strip()
-    value = re.sub(r"\(.*?\)|\[.*?\]", "", value)
+    if strip_parens:
+        value = re.sub(r"\(.*?\)|\[.*?\]", "", value)
     # Strip common hyphenated version tags (e.g. - remix, - live, - studio demo, - tv size)
     value = re.sub(r"\s+-\s+(?:[^-\s]+\s+)*(?:remix|live|demo|edit|mix|version|tv size|instrumental)\b.*$", "", value, flags=re.IGNORECASE)
     value = value.replace("&", " and ")
@@ -56,6 +57,7 @@ def build_expected_filename(artist_display: str, title: str) -> str:
 
 KNOWN_COMMA_ARTISTS = [
     "Tyler, The Creator",
+    "nothing,nowhere.",
     "Earth, Wind & Fire",
     "Crosby, Stills, Nash & Young",
     "Emerson, Lake & Palmer",
