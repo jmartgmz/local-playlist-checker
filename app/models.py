@@ -17,6 +17,7 @@ class Track:
     metadata_artists: Optional[List[str]] = None
     metadata_artists_raw: Optional[str] = None
     has_navidrome_artists: bool = False
+    navidrome_artists_values: Optional[List[str]] = None
 
     @property
     def normalized_title(self) -> str:

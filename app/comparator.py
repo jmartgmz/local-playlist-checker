@@ -253,11 +253,16 @@ def build_comparison_results(
                 spotify_set = {normalize_text(a, strip_parens=False) for a in playlist_track.artists}
 
                 # Flag if the parsed metadata artists don't match exactly (spelling/missing artists),
-                # or if the raw display string doesn't match Spotify's formatting.
-                # OR if the file lacks the multi-valued ARTISTS tags needed for Navidrome.
+                # or if the raw display string doesn't match Spotify's formatting,
+                # or if the file lacks the multi-valued ARTISTS tags needed for Navidrome,
+                # or if the ARTISTS tag values don't match Spotify's artist list.
+                navidrome_values_match = True
+                if local_track.has_navidrome_artists and local_track.navidrome_artists_values is not None:
+                    navidrome_values_match = sorted(local_track.navidrome_artists_values) == sorted(playlist_track.artists)
                 if (local_set != spotify_set 
                     or local_track.metadata_artists_raw.strip() != spotify_display.strip()
-                    or not local_track.has_navidrome_artists):
+                    or not local_track.has_navidrome_artists
+                    or not navidrome_values_match):
                     artist_mismatches.append(
                         {
                             "title": playlist_track.title,
