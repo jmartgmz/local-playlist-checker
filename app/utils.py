@@ -10,6 +10,8 @@ from app.config import EXCLUDED_DISCOVERED_FOLDERS
 def normalize_text(value: str) -> str:
     value = value.lower().strip()
     value = re.sub(r"\(.*?\)|\[.*?\]", "", value)
+    # Strip common hyphenated version tags (e.g. - remix, - live, - studio demo, - tv size)
+    value = re.sub(r"\s+-\s+(?:[^-\s]+\s+)*(?:remix|live|demo|edit|mix|version|tv size|instrumental)\b.*$", "", value, flags=re.IGNORECASE)
     value = value.replace("&", " and ")
     value = value.replace("feat.", "")
     value = value.replace("ft.", "")

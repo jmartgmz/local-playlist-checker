@@ -31,7 +31,9 @@ def compare_tracks(
     matched_playlist: set[int] = set()
     extra_local: List[Track] = []
     matched_pairs: List[Tuple[Track, Track, str]] = []
+    unmatched_local: List[Track] = []
 
+    # Pass 1: Exact normalized title matching
     for local_track in local_tracks:
         local_title = local_track.normalized_title
         match_index: Optional[int] = None
@@ -61,6 +63,53 @@ def compare_tracks(
                 return exact_title_rank, 0, duration_delta, idx
 
             match_index = min(candidate_pool, key=candidate_key)[0]
+
+        if match_index is not None:
+            matched_playlist.add(match_index)
+            playlist_track = playlist_tracks[match_index]
+            local_artists = set(local_track.normalized_artists)
+            playlist_artists = set(playlist_track.normalized_artists)
+            if local_artists and playlist_artists and local_artists.intersection(playlist_artists):
+                match_quality = "artist"
+            else:
+                match_quality = "title"
+            matched_pairs.append((local_track, playlist_track, match_quality))
+        else:
+            unmatched_local.append(local_track)
+
+    # Pass 2: Fallback matching for remaining unmatched local tracks
+    for local_track in unmatched_local:
+        local_title = local_track.normalized_title
+        match_index = None
+        fallback_candidates = []
+
+        for idx, playlist_track in enumerate(playlist_tracks):
+            if idx in matched_playlist:
+                continue
+
+            p_title = playlist_track.normalized_title
+            is_substring = bool(local_title and p_title and (local_title in p_title or p_title in local_title) and min(len(local_title), len(p_title)) >= 3)
+            has_artist_overlap = artists_overlap(local_track, playlist_track)
+
+            duration_delta = None
+            if local_track.duration_ms is not None and playlist_track.duration_ms is not None:
+                duration_delta = abs(local_track.duration_ms - playlist_track.duration_ms)
+
+            rank = None
+            if is_substring and has_artist_overlap:
+                rank = 0
+            elif is_substring:
+                rank = 1
+            elif has_artist_overlap and duration_delta is not None and duration_delta <= 15000:
+                rank = 2
+            elif duration_delta is not None and duration_delta <= 3000:
+                rank = 3
+
+            if rank is not None:
+                fallback_candidates.append((rank, duration_delta if duration_delta is not None else 999999, idx))
+
+        if fallback_candidates:
+            match_index = min(fallback_candidates)[2]
 
         if match_index is not None:
             matched_playlist.add(match_index)
@@ -139,6 +188,13 @@ def build_comparison_results(
         title_mismatches: List[Dict[str, str]] = []
         artist_mismatches: List[Dict[str, str]] = []
         filename_mismatches: List[Dict[str, str]] = []
+        # Build a set of Spotify titles that appear more than once in matched pairs.
+        # When multiple playlist tracks share the same title (e.g. different albums),
+        # the user intentionally adds suffixes like "(Live)" to avoid file overwrites,
+        # so we skip filename mismatch checks for those tracks.
+        from collections import Counter
+        _matched_title_counts = Counter(pt.title for _, pt, _ in matched_pairs)
+        _duplicate_titles = {t for t, c in _matched_title_counts.items() if c > 1}
         for local_track, playlist_track, match_quality in matched_pairs:
             # Duration checks are noisy for title-only fallback matches,
             # but still run them when artists normalize to empty (e.g. ".........").
@@ -214,8 +270,9 @@ def build_comparison_results(
                         }
                     )
 
-            # Check for Filename Mismatch
-            if local_track.file_path and playlist_track.artists and playlist_track.title:
+            # Check for Filename Mismatch (skip if title appears multiple times — user
+            # intentionally disambiguates with suffixes like "(Live)" to prevent overwrites)
+            if local_track.file_path and playlist_track.artists and playlist_track.title and playlist_track.title not in _duplicate_titles:
                 import re as _re
                 actual_path = Path(local_track.file_path)
                 actual_stem = actual_path.stem
