@@ -17,7 +17,7 @@ else
 fi
 
 export DEBUG=false
-export HOST="${HOST:-0.0.0.0}"
+export HOST="127.0.0.1"
 export PORT="${PORT:-5301}"
 
 echo "Starting Local Playlist Checker on ${HOST}:${PORT} (DEBUG=${DEBUG})"
