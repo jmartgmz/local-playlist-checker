@@ -594,6 +594,53 @@ def sync_exportify_tool(playlist_names: List[str], headless: bool, log_fn: Calla
         return False
 
 
+def check_covers_dir(
+    directory: Path,
+    threshold: int = 1500,
+    recursive: bool = True,
+    log_fn: Callable[[str], None] = print,
+) -> Dict[str, int]:
+    """Scan directory for audio files and identify album covers below threshold or missing."""
+    from app.scanner import get_cover_dimensions
+    from mutagen import File as MutagenFile
+
+    total_scanned = 0
+    total_low_res = 0
+    total_no_cover = 0
+    total_good = 0
+
+    valid_exts = {".flac", ".mp3", ".m4a", ".mp4"}
+    files = list(directory.rglob("*")) if recursive else list(directory.glob("*"))
+    audio_files = [f for f in files if f.is_file() and f.suffix.lower() in valid_exts]
+
+    for audio_path in sorted(audio_files):
+        total_scanned += 1
+        try:
+            metadata = MutagenFile(audio_path)
+            if metadata is None:
+                total_no_cover += 1
+                log_fn(f"  [NO COVER] {audio_path.name}")
+                continue
+            width, height = get_cover_dimensions(metadata)
+            if width is None or height is None:
+                total_no_cover += 1
+                log_fn(f"  [NO COVER] {audio_path.name}")
+            elif width < threshold or height < threshold:
+                total_low_res += 1
+                log_fn(f"  [LOW RES: {width}x{height}] {audio_path.name}")
+            else:
+                total_good += 1
+        except Exception as exc:
+            log_fn(f"  [ERROR] {audio_path.name}: {exc}")
+
+    return {
+        "scanned": total_scanned,
+        "low_res": total_low_res,
+        "no_cover": total_no_cover,
+        "good": total_good,
+    }
+
+
 # ==============================================================================
 # Background Tool Job Manager
 # ==============================================================================
@@ -794,6 +841,35 @@ def _tool_worker(job_id: str, tool_name: str, folder_arg: Optional[str], options
             ok = run_rsgain_dir(target_path, log_fn=log)
             with _tool_lock:
                 _tool_jobs[job_id]["status"] = "complete" if ok else "failed"
+
+        elif tool_name == "check_covers":
+            total_scanned = 0
+            total_low_res = 0
+            total_no_cover = 0
+            total_good = 0
+
+            for folder_name in folders:
+                target_dir = music_root / folder_name
+                if not target_dir.exists() or not target_dir.is_dir():
+                    log(f"Folder not found: {folder_name}, skipping.")
+                    continue
+                log(f"\n=== Checking album covers (< 1500x1500) in: {folder_name} ===")
+                res = check_covers_dir(target_dir, threshold=1500, recursive=True, log_fn=log)
+                total_scanned += res["scanned"]
+                total_low_res += res["low_res"]
+                total_no_cover += res["no_cover"]
+                total_good += res["good"]
+
+            log(f"\n==========================================")
+            log(f"Cover Check Complete! Scanned: {total_scanned}, Clean (>= 1500px): {total_good}, Low Res (< 1500px): {total_low_res}, No Cover: {total_no_cover}")
+            with _tool_lock:
+                _tool_jobs[job_id]["status"] = "complete"
+                _tool_jobs[job_id]["summary"] = {
+                    "scanned": total_scanned,
+                    "good": total_good,
+                    "low_res": total_low_res,
+                    "no_cover": total_no_cover,
+                }
 
         else:
             log(f"Unknown tool name: {tool_name}")

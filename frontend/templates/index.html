@@ -221,6 +221,14 @@
             <p>Scan and apply ReplayGain 2.0 loudness tags with rsgain</p>
           </div>
         </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('check_covers')">
+          <div class="tool-card-icon">🔍</div>
+          <div class="tool-card-body">
+            <strong>Check Cover Art (&lt; 1500px)</strong>
+            <p>Scan library for missing or low resolution album covers</p>
+          </div>
+        </button>
       </div>
 
       <!-- Real-time Console Output -->
@@ -271,7 +279,7 @@
             <strong>{{ total_filename_mismatches }}</strong>
           </div>
           <div class="metric">
-            <span class="label">Low Quality Covers (< 2000px)</span>
+            <span class="label">Low Quality Covers (< 1500px)</span>
             <strong>{{ total_low_quality_covers }}</strong>
           </div>
         </div>
@@ -326,7 +334,7 @@
                   <strong>{{ section.filename_mismatch_count }}</strong>
                 </div>
                 <div class="metric">
-                  <span class="label">Low Quality Covers (< 2000px)</span>
+                  <span class="label">Low Quality Covers (< 1500px)</span>
                   <strong>{{ section.low_quality_cover_count }}</strong>
                 </div>
               </div>
@@ -640,7 +648,7 @@
               </div>
 
               <div>
-                <h3>Low Quality Album Covers (&lt; 2000×2000)</h3>
+                <h3>Low Quality Album Covers (&lt; 1500×1500)</h3>
                 {% if section.low_quality_covers %}
                   <table>
                     <thead>
@@ -675,7 +683,7 @@
                     </tbody>
                   </table>
                 {% else %}
-                  <p class="ok">All matched tracks have album covers with resolution ≥ 2000×2000.</p>
+                  <p class="ok">All matched tracks have album covers with resolution ≥ 1500×1500.</p>
                 {% endif %}
               </div>
             {% endif %}
@@ -1217,7 +1225,8 @@
         "strip_metadata": "Strip Junk Metadata",
         "import_metadata": "Import Year & Genre Tags",
         "standardize_covers": "Standardize FLAC Covers",
-        "run_rsgain": "ReplayGain 2.0 Loudness Scan"
+        "run_rsgain": "ReplayGain 2.0 Loudness Scan",
+        "check_covers": "Check Cover Art (< 1500px)"
       };
 
       const displayName = toolDisplayNames[toolName] || toolName;

@@ -303,9 +303,9 @@ def build_comparison_results(
                             }
                         )
 
-            # Check for Low Quality Album Cover (below 2000x2000 or missing)
+            # Check for Low Quality Album Cover (below 1500x1500 or missing)
             if (local_track.cover_width is None or local_track.cover_height is None
-                    or local_track.cover_width < 2000 or local_track.cover_height < 2000):
+                    or local_track.cover_width < 1500 or local_track.cover_height < 1500):
                 res_str = (
                     f"{local_track.cover_width}×{local_track.cover_height}"
                     if (local_track.cover_width and local_track.cover_height)
