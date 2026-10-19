@@ -986,3 +986,40 @@ thead th {
   border-radius: 4px;
 }
 
+.badge-low-res {
+  background: #fff1f0;
+  color: #cf1322;
+  border: 1px solid #ffa39e;
+  font-family: "Consolas", monospace;
+  font-size: 0.76rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.badge-no-cover {
+  background: #f5f5f5;
+  color: #595959;
+  border: 1px solid #d9d9d9;
+  font-family: "Consolas", monospace;
+  font-size: 0.76rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.file-path-cell {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-path-cell code {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+

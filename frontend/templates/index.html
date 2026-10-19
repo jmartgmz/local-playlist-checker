@@ -241,7 +241,7 @@
     {% if results %}
       <section class="card summary-card">
         <h2>Overall Summary</h2>
-        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1rem;">
+        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 1rem;">
           <div class="metric">
             <span class="label">Total Missing Locally</span>
             <strong>{{ total_missing }}</strong>
@@ -270,11 +270,15 @@
             <span class="label">Filename Mismatches</span>
             <strong>{{ total_filename_mismatches }}</strong>
           </div>
+          <div class="metric">
+            <span class="label">Low Quality Covers (< 2000px)</span>
+            <strong>{{ total_low_quality_covers }}</strong>
+          </div>
         </div>
       </section>
 
       {% for section in results %}
-        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 and section.album_mismatch_count == 0 and section.title_mismatch_count == 0 and section.artist_mismatch_count == 0 and section.filename_mismatch_count == 0 %}
+        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 and section.album_mismatch_count == 0 and section.title_mismatch_count == 0 and section.artist_mismatch_count == 0 and section.filename_mismatch_count == 0 and section.low_quality_cover_count == 0 %}
         <section class="card playlist-card {% if is_clean %}collapsed{% endif %}" data-playlist="{{ section.playlist_name }}">
           <div class="playlist-header" onclick="this.parentElement.classList.toggle('collapsed')">
             <h2>{{ section.playlist_name }}</h2>
@@ -288,7 +292,7 @@
             {% if section.error %}
               <div class="flash error">{{ section.error }}</div>
             {% else %}
-              <div class="summary-grid" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 1rem;">
+              <div class="summary-grid" style="display: grid; grid-template-columns: repeat(9, 1fr); gap: 1rem;">
                 <div class="metric">
                   <span class="label">Local Tracks Found</span>
                   <strong>{{ section.local_count }}</strong>
@@ -320,6 +324,10 @@
                 <div class="metric">
                   <span class="label">Filename Mismatches</span>
                   <strong>{{ section.filename_mismatch_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Low Quality Covers (< 2000px)</span>
+                  <strong>{{ section.low_quality_cover_count }}</strong>
                 </div>
               </div>
 
@@ -628,6 +636,46 @@
                   </table>
                 {% else %}
                   <p class="ok">No filename mismatches detected for matched tracks.</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <h3>Low Quality Album Covers (&lt; 2000×2000)</h3>
+                {% if section.low_quality_covers %}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Artists</th>
+                        <th>Track</th>
+                        <th>Album</th>
+                        <th>Source</th>
+                        <th>Resolution</th>
+                        <th>File Path</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.low_quality_covers %}
+                        <tr>
+                          <td>{{ track.artists }}</td>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.album }}</td>
+                          <td>{{ track.source }}</td>
+                          <td>
+                            {% if track.width and track.height %}
+                              <span class="badge badge-low-res" title="{{ track.resolution }}">{{ track.resolution }}</span>
+                            {% else %}
+                              <span class="badge badge-no-cover" title="No Cover Art Embedded">No Cover</span>
+                            {% endif %}
+                          </td>
+                          <td class="file-path-cell" title="{{ track.file_path }}">
+                            <code>{{ track.file_path }}</code>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">All matched tracks have album covers with resolution ≥ 2000×2000.</p>
                 {% endif %}
               </div>
             {% endif %}

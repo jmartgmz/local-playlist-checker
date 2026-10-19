@@ -1,15 +1,73 @@
-from __future__ import annotations
-
+import io
 import re
 from pathlib import Path
 from typing import List, Optional, Tuple
+
+from PIL import Image
 
 from app.config import AUDIO_EXTENSIONS
 from app.models import Track
 from app.utils import parse_artists
 
 
-def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Optional[str], Optional[List[str]], Optional[str], bool, Optional[List[str]]]:
+def get_cover_dimensions(metadata) -> Tuple[Optional[int], Optional[int]]:
+    if metadata is None:
+        return None, None
+    try:
+        # FLAC pictures
+        if hasattr(metadata, "pictures") and metadata.pictures:
+            for p in metadata.pictures:
+                if getattr(p, "type", None) == 3:
+                    if getattr(p, "width", 0) > 0 and getattr(p, "height", 0) > 0:
+                        return p.width, p.height
+                    try:
+                        with Image.open(io.BytesIO(p.data)) as img:
+                            return img.size
+                    except Exception:
+                        pass
+            p = metadata.pictures[0]
+            if getattr(p, "width", 0) > 0 and getattr(p, "height", 0) > 0:
+                return p.width, p.height
+            try:
+                with Image.open(io.BytesIO(p.data)) as img:
+                    return img.size
+            except Exception:
+                pass
+
+        if hasattr(metadata, "tags") and metadata.tags is not None:
+            tags = metadata.tags
+            # ID3 (MP3)
+            if hasattr(tags, "getall"):
+                apics = tags.getall("APIC")
+                if apics:
+                    for a in apics:
+                        if getattr(a, "type", None) == 3:
+                            try:
+                                with Image.open(io.BytesIO(a.data)) as img:
+                                    return img.size
+                            except Exception:
+                                pass
+                    try:
+                        with Image.open(io.BytesIO(apics[0].data)) as img:
+                            return img.size
+                    except Exception:
+                        pass
+
+            # MP4 (M4A)
+            if "covr" in tags:
+                covrs = tags["covr"]
+                if covrs:
+                    try:
+                        with Image.open(io.BytesIO(bytes(covrs[0]))) as img:
+                            return img.size
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    return None, None
+
+
+def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Optional[str], Optional[List[str]], Optional[str], bool, Optional[List[str]], Optional[int], Optional[int]]:
     duration_ms = None
     album = None
     metadata_title = None
@@ -20,12 +78,12 @@ def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Opti
     try:
         mutagen_file = __import__("mutagen", fromlist=["File"]).File
     except Exception:
-        return None, None, None, None, None, False, None
+        return None, None, None, None, None, False, None, None, None
 
     try:
         metadata = mutagen_file(path)
     except Exception:
-        return None, None, None, None, None, False, None
+        return None, None, None, None, None, False, None, None, None
 
     if metadata is not None and getattr(metadata, "info", None):
         length_seconds = getattr(metadata.info, "length", None)
@@ -92,7 +150,8 @@ def probe_audio_metadata(path: Path) -> Tuple[Optional[int], Optional[str], Opti
             except (ValueError, KeyError):
                 pass
 
-    return duration_ms, album, metadata_title, metadata_artists, metadata_artists_raw, has_navidrome, navidrome_artists_values
+    cover_width, cover_height = get_cover_dimensions(metadata)
+    return duration_ms, album, metadata_title, metadata_artists, metadata_artists_raw, has_navidrome, navidrome_artists_values, cover_width, cover_height
 
 
 def parse_local_filename(path: Path) -> Track:
@@ -109,7 +168,7 @@ def parse_local_filename(path: Path) -> Track:
         title = stem.strip()
         artists = []
 
-    duration_ms, album, metadata_title, metadata_artists, metadata_artists_raw, has_navidrome, nav_artists_vals = probe_audio_metadata(path)
+    duration_ms, album, metadata_title, metadata_artists, metadata_artists_raw, has_navidrome, nav_artists_vals, cover_width, cover_height = probe_audio_metadata(path)
 
     return Track(
         title=title,
@@ -122,6 +181,8 @@ def parse_local_filename(path: Path) -> Track:
         metadata_artists_raw=metadata_artists_raw,
         has_navidrome_artists=has_navidrome,
         navidrome_artists_values=nav_artists_vals,
+        cover_width=cover_width,
+        cover_height=cover_height,
         file_path=str(path),
     )
 

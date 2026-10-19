@@ -146,6 +146,7 @@ def build_comparison_results(
     total_title_mismatches = 0
     total_artist_mismatches = 0
     total_filename_mismatches = 0
+    total_low_quality_covers = 0
 
     for folder, playlist_name in mapping:
         local_folder = music_root / folder
@@ -165,6 +166,8 @@ def build_comparison_results(
             "title_mismatches": [],
             "artist_mismatches": [],
             "filename_mismatches": [],
+            "low_quality_covers": [],
+            "low_quality_cover_count": 0,
             "error": None,
         }
 
@@ -188,6 +191,7 @@ def build_comparison_results(
         title_mismatches: List[Dict[str, str]] = []
         artist_mismatches: List[Dict[str, str]] = []
         filename_mismatches: List[Dict[str, str]] = []
+        low_quality_covers: List[Dict[str, str]] = []
         # Build a set of Spotify titles that appear more than once in matched pairs.
         # When multiple playlist tracks share the same title (e.g. different albums),
         # the user intentionally adds suffixes like "(Live)" to avoid file overwrites,
@@ -298,6 +302,27 @@ def build_comparison_results(
                                 "file_path": local_track.file_path,
                             }
                         )
+
+            # Check for Low Quality Album Cover (below 2000x2000 or missing)
+            if (local_track.cover_width is None or local_track.cover_height is None
+                    or local_track.cover_width < 2000 or local_track.cover_height < 2000):
+                res_str = (
+                    f"{local_track.cover_width}×{local_track.cover_height}"
+                    if (local_track.cover_width and local_track.cover_height)
+                    else "No Cover"
+                )
+                low_quality_covers.append(
+                    {
+                        "title": playlist_track.title,
+                        "artists": ", ".join(playlist_track.artists) if playlist_track.artists else "Unknown",
+                        "album": playlist_track.album or local_track.album or "Unknown",
+                        "source": local_track.source,
+                        "resolution": res_str,
+                        "width": local_track.cover_width,
+                        "height": local_track.cover_height,
+                        "file_path": local_track.file_path or "",
+                    }
+                )
             
         duration_discrepancies.sort(
             key=lambda row: (
@@ -332,6 +357,13 @@ def build_comparison_results(
                 row["title"].casefold(),
             )
         )
+        low_quality_covers.sort(
+            key=lambda row: (
+                row["artists"].casefold() == "unknown",
+                row["artists"].casefold(),
+                row["title"].casefold(),
+            )
+        )
 
         total_missing += len(missing)
         total_extra += len(extra)
@@ -340,6 +372,7 @@ def build_comparison_results(
         total_title_mismatches += len(title_mismatches)
         total_artist_mismatches += len(artist_mismatches)
         total_filename_mismatches += len(filename_mismatches)
+        total_low_quality_covers += len(low_quality_covers)
 
         entry["missing"] = [track_to_row(track, folder=folder) for track in sorted_missing]
         entry["extra"] = [track_to_row(track) for track in extra]
@@ -348,6 +381,7 @@ def build_comparison_results(
         entry["title_mismatches"] = title_mismatches
         entry["artist_mismatches"] = artist_mismatches
         entry["filename_mismatches"] = filename_mismatches
+        entry["low_quality_covers"] = low_quality_covers
         entry["missing_count"] = len(missing)
         entry["extra_count"] = len(extra)
         entry["duration_discrepancy_count"] = len(duration_discrepancies)
@@ -355,6 +389,17 @@ def build_comparison_results(
         entry["title_mismatch_count"] = len(title_mismatches)
         entry["artist_mismatch_count"] = len(artist_mismatches)
         entry["filename_mismatch_count"] = len(filename_mismatches)
+        entry["low_quality_cover_count"] = len(low_quality_covers)
         results.append(entry)
 
-    return results, total_missing, total_extra, total_duration_discrepancies, total_album_mismatches, total_title_mismatches, total_artist_mismatches, total_filename_mismatches
+    return (
+        results,
+        total_missing,
+        total_extra,
+        total_duration_discrepancies,
+        total_album_mismatches,
+        total_title_mismatches,
+        total_artist_mismatches,
+        total_filename_mismatches,
+        total_low_quality_covers,
+    )
