@@ -23,4 +23,21 @@ def create_app() -> Flask:
     flask_app.register_blueprint(main_bp)
     flask_app.register_blueprint(api_bp)
 
+    @flask_app.context_processor
+    def inject_static_version() -> dict[str, str]:
+        css_file = _PROJECT_ROOT / "frontend" / "static" / "style.css"
+        try:
+            version = str(int(css_file.stat().st_mtime))
+        except OSError:
+            version = "1.0.0"
+        return {"css_version": version}
+
+    @flask_app.after_request
+    def add_cache_headers(response):
+        if response.content_type and response.content_type.startswith("text/css"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     return flask_app
