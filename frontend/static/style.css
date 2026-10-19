@@ -656,3 +656,333 @@ thead th {
   opacity: 0.7;
   cursor: default;
 }
+
+/* ==========================================================================
+   Order of Operations Notes Box
+   ========================================================================== */
+.notes-card {
+  margin-top: 14px;
+  border-left: 4px solid var(--info);
+}
+
+.notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+
+.notes-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notes-title-group h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.notes-badge {
+  background: var(--info);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.notes-card.collapsed .toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.notes-card.collapsed .notes-body {
+  display: none;
+}
+
+.notes-intro {
+  margin: 10px 0 14px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  opacity: 0.9;
+}
+
+.workflow-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.workflow-step {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  align-items: flex-start;
+}
+
+.step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.step-content strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 3px;
+  color: var(--primary-strong);
+}
+
+.step-content p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #555;
+  line-height: 1.35;
+}
+
+/* ==========================================================================
+   Music Library Tools Suite
+   ========================================================================== */
+.tools-card {
+  margin-top: 14px;
+  border-left: 4px solid var(--primary);
+}
+
+.tools-header {
+  margin-bottom: 14px;
+}
+
+.tools-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.tools-title-group h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.tools-badge {
+  background: var(--primary);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tools-control-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  margin-bottom: 14px;
+}
+
+.tool-field {
+  flex: 1 1 280px;
+}
+
+.tool-field label {
+  margin-top: 0;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.tool-select {
+  width: 100%;
+  border: 1px solid rgba(43, 43, 43, 0.15);
+  border-radius: 2px;
+  padding: 9px 12px;
+  font-size: 0.92rem;
+  background: #FFFFFF;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.tool-select:focus {
+  outline: none;
+  border-color: rgba(74, 74, 74, 0.75);
+  box-shadow: 0 0 0 3px rgba(74, 74, 74, 0.15);
+}
+
+.tool-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.check-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.tool-action-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 14px 12px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.tool-action-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(74, 74, 74, 0.12);
+  border-color: var(--primary);
+}
+
+.tool-action-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.tool-card-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tool-card-body strong {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--primary-strong);
+  margin-bottom: 4px;
+}
+
+.tool-card-body p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* Console Drawer */
+.tool-console {
+  margin-top: 16px;
+  background: #1e1e1e;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  animation: rise-in 0.3s ease;
+}
+
+.console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3d3d3d;
+  color: #f0f0f0;
+}
+
+.console-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge.running {
+  background: #d48806;
+  color: #fff;
+}
+
+.badge.success {
+  background: #389e0d;
+  color: #fff;
+}
+
+.badge.failed {
+  background: #cf1322;
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+.console-output {
+  margin: 0;
+  padding: 14px;
+  color: #e0e0e0;
+  background: #181818;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 0.83rem;
+  line-height: 1.5;
+  max-height: 380px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.console-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.console-output::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+

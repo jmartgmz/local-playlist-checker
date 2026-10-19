@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 
 from app.config import AUDIO_EXTENSIONS, load_saved_config
 from app.downloader import get_all_jobs, get_job, start_download
+from app.tools import get_active_tool_jobs, get_tool_job, start_tool_job
 
 api_bp = Blueprint("api", __name__)
 
@@ -353,3 +354,39 @@ def fix_filename():
         })
     except OSError as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@api_bp.route("/tools/run", methods=["POST"])
+def run_tool():
+    """Run a library tool (sync_exports, strip_metadata, import_metadata, standardize_covers, run_rsgain)."""
+    data = request.get_json(silent=True) or {}
+    tool_name = (data.get("tool") or "").strip()
+    folder = (data.get("folder") or "").strip()
+    options = data.get("options") or {}
+
+    if not tool_name:
+        return jsonify({"error": "Missing tool parameter"}), 400
+
+    job_id = start_tool_job(tool_name=tool_name, folder_arg=folder, options=options)
+    return jsonify({"job_id": job_id, "status": "running"})
+
+
+@api_bp.route("/tools/status")
+def tool_status():
+    """Return status and logs for a tool execution job."""
+    job_id = (request.args.get("job_id") or "").strip()
+    if not job_id:
+        return jsonify({"error": "Missing job_id"}), 400
+
+    job = get_tool_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(job)
+
+
+@api_bp.route("/tools/active")
+def active_tool_jobs():
+    """Return all active or recent tool jobs."""
+    return jsonify(get_active_tool_jobs())
+

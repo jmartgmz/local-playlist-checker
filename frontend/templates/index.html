@@ -74,6 +74,170 @@
       </section>
     </section>
 
+    <!-- Order of Operations Notes Box -->
+    <section class="card notes-card">
+      <div class="notes-header" onclick="this.parentElement.classList.toggle('collapsed')">
+        <div class="notes-title-group">
+          <span class="notes-badge">📋 Workflow Guide</span>
+          <h2>Recommended Order of Operations</h2>
+        </div>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="notes-body">
+        <p class="notes-intro">
+          To maintain a clean, properly tagged, and synchronized music library with zero metadata conflicts, execute tasks in this sequence:
+        </p>
+        <div class="workflow-steps-grid">
+          <div class="workflow-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>Sync Spotify CSVs</strong>
+              <p>Run Exportify to download the latest Spotify playlist CSV exports into <code>exports/</code>.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <strong>Audit & Compare</strong>
+              <p>Click <em>Sync</em> in Settings to detect missing tracks, extra files, duration discrepancies, and tag mismatches.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <strong>Download & Clean Extras</strong>
+              <p>Download missing tracks using SpotiFLAC (<em>⬇ Download All</em>), and delete obsolete local files (<em>🗑 Delete</em>).</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <strong>Fix Tags & Filenames</strong>
+              <p>Use the one-click <em>Fix</em> buttons in the discrepancy tables to align Artist, Album, Title, and Filename tags with Spotify.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <strong>Strip Junk Metadata</strong>
+              <p>Strip track/disc numbers, stray dates, comments, and lyrics to ensure audio files have a clean container before re-tagging.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">6</div>
+            <div class="step-content">
+              <strong>Import Year & Genre</strong>
+              <p>Write verified release years and genres from Spotify/Exportify CSVs directly into local audio tags.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">7</div>
+            <div class="step-content">
+              <strong>Standardize FLAC Covers</strong>
+              <p>Scan albums to find the highest-resolution cover art, unify tracks, and ensure Front Cover (Type 3) tags.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">8</div>
+            <div class="step-content">
+              <strong>Scan ReplayGain</strong>
+              <p>Run rsgain 2.0 loudness normalization across your library as the final finishing step.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Music Library Tools Card -->
+    <section class="card tools-card">
+      <div class="tools-header">
+        <div class="tools-title-group">
+          <span class="tools-badge">🎛️ Tool Suite</span>
+          <h2>Music Library Tools</h2>
+        </div>
+        <span class="hint">Execute batch maintenance actions across your local music folders</span>
+      </div>
+
+      <div class="tools-control-bar">
+        <div class="tool-field">
+          <label for="tool_target_folder">Target Folder</label>
+          <select id="tool_target_folder" class="tool-select">
+            <option value="__ALL__">All Configured Folders ({{ selected_folders | length }} folders)</option>
+            {% for f in discovered_folders %}
+              <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="tool-options">
+          <label class="check-label" title="Preview changes for Standardize Covers without altering files">
+            <input type="checkbox" id="tool_dry_run">
+            <span>Dry run (preview)</span>
+          </label>
+          <label class="check-label" title="Launch a visible browser window if Spotify login or CAPTCHA is required">
+            <input type="checkbox" id="tool_visible_browser">
+            <span>Visible browser (Spotify login)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="tools-grid">
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('sync_exports')">
+          <div class="tool-card-icon">🔄</div>
+          <div class="tool-card-body">
+            <strong>Sync Spotify CSVs</strong>
+            <p>Download fresh CSV exports from Exportify in Spotify</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('strip_metadata')">
+          <div class="tool-card-icon">🧹</div>
+          <div class="tool-card-body">
+            <strong>Strip Junk Metadata</strong>
+            <p>Remove track numbers, stray dates, comments, and lyrics</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('import_metadata')">
+          <div class="tool-card-icon">🏷️</div>
+          <div class="tool-card-body">
+            <strong>Import Year & Genre</strong>
+            <p>Write release years and genres from CSV exports into tags</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('standardize_covers')">
+          <div class="tool-card-icon">🖼️</div>
+          <div class="tool-card-body">
+            <strong>Standardize FLAC Covers</strong>
+            <p>Unify album art to highest resolution Front Cover</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('run_rsgain')">
+          <div class="tool-card-icon">🔊</div>
+          <div class="tool-card-body">
+            <strong>Run ReplayGain</strong>
+            <p>Scan and apply ReplayGain 2.0 loudness tags with rsgain</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Real-time Console Output -->
+      <div id="tool-console" class="tool-console" style="display: none;">
+        <div class="console-header">
+          <div class="console-left">
+            <span id="console-status-badge" class="badge">Running</span>
+            <strong id="console-job-name">Tool Execution</strong>
+          </div>
+          <div class="console-right">
+            <button type="button" class="btn ghost btn-sm" onclick="clearToolConsole()">Hide Console</button>
+          </div>
+        </div>
+        <pre id="console-output" class="console-output"></pre>
+      </div>
+    </section>
+
     {% if results %}
       <section class="card summary-card">
         <h2>Overall Summary</h2>
@@ -984,6 +1148,116 @@
           });
       }
       next();
+    }
+
+    /* ----- Music Library Tools Logic ----- */
+    let activeToolJobId = null;
+    let toolPollTimer = null;
+
+    function runLibraryTool(toolName) {
+      const targetFolder = document.getElementById("tool_target_folder").value;
+      const dryRun = document.getElementById("tool_dry_run").checked;
+      const visibleBrowser = document.getElementById("tool_visible_browser").checked;
+
+      const consoleBox = document.getElementById("tool-console");
+      const consoleTitle = document.getElementById("console-job-name");
+      const consoleBadge = document.getElementById("console-status-badge");
+      const consoleOutput = document.getElementById("console-output");
+
+      const toolDisplayNames = {
+        "sync_exports": "Sync Spotify CSVs (Exportify)",
+        "strip_metadata": "Strip Junk Metadata",
+        "import_metadata": "Import Year & Genre Tags",
+        "standardize_covers": "Standardize FLAC Covers",
+        "run_rsgain": "ReplayGain 2.0 Loudness Scan"
+      };
+
+      const displayName = toolDisplayNames[toolName] || toolName;
+      consoleBox.style.display = "block";
+      consoleTitle.textContent = displayName;
+      consoleBadge.className = "badge running";
+      consoleBadge.textContent = "Running...";
+      consoleOutput.textContent = "Starting " + displayName + "...\n";
+
+      // Disable tool buttons while running
+      document.querySelectorAll(".btn-tool").forEach(b => b.disabled = true);
+
+      fetch("/tools/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tool: toolName,
+          folder: targetFolder,
+          options: {
+            dry_run: dryRun,
+            visible_browser: visibleBrowser
+          }
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          consoleBadge.className = "badge failed";
+          consoleBadge.textContent = "Failed";
+          consoleOutput.textContent += "\nError: " + data.error + "\n";
+          document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+        } else {
+          activeToolJobId = data.job_id;
+          if (toolPollTimer) clearInterval(toolPollTimer);
+          toolPollTimer = setInterval(pollToolJob, 800);
+        }
+      })
+      .catch(err => {
+        consoleBadge.className = "badge failed";
+        consoleBadge.textContent = "Failed";
+        consoleOutput.textContent += "\nNetwork Error: " + err + "\n";
+        document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+      });
+    }
+
+    function pollToolJob() {
+      if (!activeToolJobId) return;
+
+      fetch("/tools/status?job_id=" + encodeURIComponent(activeToolJobId))
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            clearInterval(toolPollTimer);
+            toolPollTimer = null;
+            document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+            return;
+          }
+
+          const consoleOutput = document.getElementById("console-output");
+          const consoleBadge = document.getElementById("console-status-badge");
+
+          if (data.logs && data.logs.length) {
+            consoleOutput.textContent = data.logs.join("\n");
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+          }
+
+          if (data.status === "complete") {
+            clearInterval(toolPollTimer);
+            toolPollTimer = null;
+            consoleBadge.className = "badge success";
+            consoleBadge.textContent = "✓ Completed";
+            document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+          } else if (data.status === "failed") {
+            clearInterval(toolPollTimer);
+            toolPollTimer = null;
+            consoleBadge.className = "badge failed";
+            consoleBadge.textContent = "✗ Failed";
+            document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+          }
+        })
+        .catch(() => {
+          // Retry on intermittent connection
+        });
+    }
+
+    function clearToolConsole() {
+      const consoleBox = document.getElementById("tool-console");
+      consoleBox.style.display = "none";
     }
   </script>
 </body>
