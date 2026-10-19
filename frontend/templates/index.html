@@ -74,10 +74,182 @@
       </section>
     </section>
 
+    <!-- Order of Operations Notes Box -->
+    <section class="card notes-card">
+      <div class="notes-header" onclick="this.parentElement.classList.toggle('collapsed')">
+        <div class="notes-title-group">
+          <span class="notes-badge">📋 Workflow Guide</span>
+          <h2>Recommended Order of Operations</h2>
+        </div>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="notes-body">
+        <p class="notes-intro">
+          To maintain a clean, properly tagged, and synchronized music library with zero metadata conflicts, execute tasks in this sequence:
+        </p>
+        <div class="workflow-steps-grid">
+          <div class="workflow-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <strong>Sync Spotify CSVs</strong>
+              <p>Run Exportify to download the latest Spotify playlist CSV exports into <code>exports/</code>.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <strong>Audit & Compare</strong>
+              <p>Click <em>Sync</em> in Settings to detect missing tracks, extra files, duration discrepancies, and tag mismatches.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <strong>Download & Clean Extras</strong>
+              <p>Download missing tracks using SpotiFLAC (<em>⬇ Download All</em>), and delete obsolete local files (<em>🗑 Delete</em>).</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <strong>Fix Tags & Filenames</strong>
+              <p>Use the one-click <em>Fix</em> buttons in the discrepancy tables to align Artist, Album, Title, and Filename tags with Spotify.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">5</div>
+            <div class="step-content">
+              <strong>Strip Junk Metadata</strong>
+              <p>Strip track/disc numbers, stray dates, comments, and lyrics to ensure audio files have a clean container before re-tagging.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">6</div>
+            <div class="step-content">
+              <strong>Import Year & Genre</strong>
+              <p>Write verified release years and genres from Spotify/Exportify CSVs directly into local audio tags.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">7</div>
+            <div class="step-content">
+              <strong>Standardize FLAC Covers</strong>
+              <p>Scan albums to find the highest-resolution cover art, unify tracks, and ensure Front Cover (Type 3) tags.</p>
+            </div>
+          </div>
+          <div class="workflow-step">
+            <div class="step-num">8</div>
+            <div class="step-content">
+              <strong>Scan ReplayGain</strong>
+              <p>Run rsgain 2.0 loudness normalization across your library as the final finishing step.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Music Library Tools Card -->
+    <section class="card tools-card">
+      <div class="tools-header">
+        <div class="tools-title-group">
+          <span class="tools-badge">🎛️ Tool Suite</span>
+          <h2>Music Library Tools</h2>
+        </div>
+        <span class="hint">Execute batch maintenance actions across your local music folders</span>
+      </div>
+
+      <div class="tools-control-bar">
+        <div class="tool-field">
+          <label for="tool_target_folder">Target Folder</label>
+          <select id="tool_target_folder" class="tool-select">
+            <option value="__ALL__">All Configured Folders ({{ selected_folders | length }} folders)</option>
+            {% for f in discovered_folders %}
+              <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="tool-options">
+          <label class="check-label" title="Preview changes for Standardize Covers without altering files">
+            <input type="checkbox" id="tool_dry_run">
+            <span>Dry run (preview)</span>
+          </label>
+          <label class="check-label" title="Launch a visible browser window if Spotify login or CAPTCHA is required">
+            <input type="checkbox" id="tool_visible_browser">
+            <span>Visible browser (Spotify login)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="tools-grid">
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('sync_exports')">
+          <div class="tool-card-icon">🔄</div>
+          <div class="tool-card-body">
+            <strong>Sync Spotify CSVs</strong>
+            <p>Download fresh CSV exports from Exportify in Spotify</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('strip_metadata')">
+          <div class="tool-card-icon">🧹</div>
+          <div class="tool-card-body">
+            <strong>Strip Junk Metadata</strong>
+            <p>Remove track numbers, stray dates, comments, and lyrics</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('import_metadata')">
+          <div class="tool-card-icon">🏷️</div>
+          <div class="tool-card-body">
+            <strong>Import Year & Genre</strong>
+            <p>Write release years and genres from CSV exports into tags</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('standardize_covers')">
+          <div class="tool-card-icon">🖼️</div>
+          <div class="tool-card-body">
+            <strong>Standardize FLAC Covers</strong>
+            <p>Unify album art to highest resolution Front Cover</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('run_rsgain')">
+          <div class="tool-card-icon">🔊</div>
+          <div class="tool-card-body">
+            <strong>Run ReplayGain</strong>
+            <p>Scan and apply ReplayGain 2.0 loudness tags with rsgain</p>
+          </div>
+        </button>
+
+        <button type="button" class="tool-action-card btn-tool" onclick="runLibraryTool('check_covers')">
+          <div class="tool-card-icon">🔍</div>
+          <div class="tool-card-body">
+            <strong>Check Cover Art (&lt; 1500px)</strong>
+            <p>Scan library for missing or low resolution album covers</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Real-time Console Output -->
+      <div id="tool-console" class="tool-console" style="display: none;">
+        <div class="console-header">
+          <div class="console-left">
+            <span id="console-status-badge" class="badge">Running</span>
+            <strong id="console-job-name">Tool Execution</strong>
+          </div>
+          <div class="console-right">
+            <button type="button" class="btn ghost btn-sm" onclick="clearToolConsole()">Hide Console</button>
+          </div>
+        </div>
+        <pre id="console-output" class="console-output"></pre>
+      </div>
+    </section>
+
     {% if results %}
       <section class="card summary-card">
         <h2>Overall Summary</h2>
-        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 1rem;">
           <div class="metric">
             <span class="label">Total Missing Locally</span>
             <strong>{{ total_missing }}</strong>
@@ -98,11 +270,23 @@
             <span class="label">Title Mismatches</span>
             <strong>{{ total_title_mismatches }}</strong>
           </div>
+          <div class="metric">
+            <span class="label">Artist Mismatches</span>
+            <strong>{{ total_artist_mismatches }}</strong>
+          </div>
+          <div class="metric">
+            <span class="label">Filename Mismatches</span>
+            <strong>{{ total_filename_mismatches }}</strong>
+          </div>
+          <div class="metric">
+            <span class="label">Low Quality Covers (< 1500px)</span>
+            <strong>{{ total_low_quality_covers }}</strong>
+          </div>
         </div>
       </section>
 
       {% for section in results %}
-        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 and section.album_mismatch_count == 0 and section.title_mismatch_count == 0 %}
+        {% set is_clean = section.missing_count == 0 and section.extra_count == 0 and section.duration_discrepancy_count == 0 and section.album_mismatch_count == 0 and section.title_mismatch_count == 0 and section.artist_mismatch_count == 0 and section.filename_mismatch_count == 0 and section.low_quality_cover_count == 0 %}
         <section class="card playlist-card {% if is_clean %}collapsed{% endif %}" data-playlist="{{ section.playlist_name }}">
           <div class="playlist-header" onclick="this.parentElement.classList.toggle('collapsed')">
             <h2>{{ section.playlist_name }}</h2>
@@ -116,7 +300,7 @@
             {% if section.error %}
               <div class="flash error">{{ section.error }}</div>
             {% else %}
-              <div class="summary-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;">
+              <div class="summary-grid" style="display: grid; grid-template-columns: repeat(9, 1fr); gap: 1rem;">
                 <div class="metric">
                   <span class="label">Local Tracks Found</span>
                   <strong>{{ section.local_count }}</strong>
@@ -140,6 +324,18 @@
                 <div class="metric">
                   <span class="label">Title Mismatches</span>
                   <strong>{{ section.title_mismatch_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Artist Mismatches</span>
+                  <strong>{{ section.artist_mismatch_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Filename Mismatches</span>
+                  <strong>{{ section.filename_mismatch_count }}</strong>
+                </div>
+                <div class="metric">
+                  <span class="label">Low Quality Covers (< 1500px)</span>
+                  <strong>{{ section.low_quality_cover_count }}</strong>
                 </div>
               </div>
 
@@ -239,6 +435,7 @@
                         <th>Local Duration</th>
                         <th>Spotify Duration</th>
                         <th>Difference</th>
+                        <th class="dl-col">Delete</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -249,6 +446,19 @@
                           <td>{{ track.local_duration }}</td>
                           <td>{{ track.spotify_duration }}</td>
                           <td>{{ track.difference }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-delete"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                onclick="deleteFile(this)"
+                                title="Delete this file"
+                              >🗑</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
                         </tr>
                       {% endfor %}
                     </tbody>
@@ -261,24 +471,40 @@
               <div>
                 <h3>Album Mismatches</h3>
                 {% if section.album_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllAlbums(this)">🔧 Fix All Albums</button>
                   <table>
                     <thead>
                       <tr>
-                        <th>Artists</th>
                         <th>Track</th>
+                        <th>Artists</th>
                         <th>Source</th>
                         <th>Local Album</th>
                         <th>Spotify Album</th>
+                        <th class="dl-col">Fix</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for track in section.album_mismatches %}
                         <tr>
-                          <td>{{ track.artists }}</td>
                           <td>{{ track.title }}</td>
+                          <td>{{ track.artists }}</td>
                           <td>{{ track.source }}</td>
                           <td>{{ track.local_album }}</td>
                           <td>{{ track.spotify_album }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-new-album="{{ track.spotify_album }}"
+                                onclick="fixAlbum(this)"
+                                title="Fix album tag to: {{ track.spotify_album }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
                         </tr>
                       {% endfor %}
                     </tbody>
@@ -291,6 +517,7 @@
               <div>
                 <h3>Title Mismatches</h3>
                 {% if section.title_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllTitles(this)">🔧 Fix All Titles</button>
                   <table>
                     <thead>
                       <tr>
@@ -298,6 +525,7 @@
                         <th>Source</th>
                         <th>Local Title</th>
                         <th>Spotify Title</th>
+                        <th class="dl-col">Fix</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -307,12 +535,155 @@
                           <td>{{ track.source }}</td>
                           <td>{{ track.local_title }}</td>
                           <td>{{ track.spotify_title }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-new-title="{{ track.spotify_title }}"
+                                onclick="fixTitle(this)"
+                                title="Fix title tag to: {{ track.spotify_title }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
                         </tr>
                       {% endfor %}
                     </tbody>
                   </table>
                 {% else %}
                   <p class="ok">No title mismatches detected for matched tracks.</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <h3>Artist Mismatches (Scrobble)</h3>
+                {% if section.artist_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllArtists(this)">🔧 Fix All Artists</button>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Track</th>
+                        <th>Source</th>
+                        <th>Current Metadata Artist</th>
+                        <th>Recommended Artist</th>
+                        <th class="dl-col">Fix</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.artist_mismatches %}
+                        <tr>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.source }}</td>
+                          <td>{{ track.local_artists }}</td>
+                          <td>{{ track.recommended_artist }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-display-artist="{{ track.display_artist }}"
+                                data-all-artists="{{ track.all_spotify_artists | join('|') }}"
+                                onclick="fixArtist(this)"
+                                title="Fix artist tag for Navidrome: {{ track.display_artist }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">No artist mismatches detected for matched tracks.</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <h3>Filename Mismatches</h3>
+                {% if section.filename_mismatches %}
+                  <button class="btn btn-fix-all" type="button" onclick="fixAllFilenames(this)">🔧 Fix All Filenames</button>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Artists</th>
+                        <th>Track</th>
+                        <th>Current Filename</th>
+                        <th>Expected Filename</th>
+                        <th class="dl-col">Fix</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.filename_mismatches %}
+                        <tr>
+                          <td>{{ track.artists }}</td>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.current_filename }}</td>
+                          <td>{{ track.expected_filename }}</td>
+                          <td class="dl-col">
+                            {% if track.file_path %}
+                              <button
+                                class="btn-fix"
+                                type="button"
+                                data-file-path="{{ track.file_path }}"
+                                data-new-filename="{{ track.expected_filename }}"
+                                onclick="fixFilename(this)"
+                                title="Rename to: {{ track.expected_filename }}"
+                              >🔧</button>
+                            {% else %}
+                              <span class="dl-na" title="No file path available">—</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">No filename mismatches detected for matched tracks.</p>
+                {% endif %}
+              </div>
+
+              <div>
+                <h3>Low Quality Album Covers (&lt; 1500×1500)</h3>
+                {% if section.low_quality_covers %}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Artists</th>
+                        <th>Track</th>
+                        <th>Album</th>
+                        <th>Source</th>
+                        <th>Resolution</th>
+                        <th>File Path</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for track in section.low_quality_covers %}
+                        <tr>
+                          <td>{{ track.artists }}</td>
+                          <td>{{ track.title }}</td>
+                          <td>{{ track.album }}</td>
+                          <td>{{ track.source }}</td>
+                          <td>
+                            {% if track.width and track.height %}
+                              <span class="badge badge-low-res" title="{{ track.resolution }}">{{ track.resolution }}</span>
+                            {% else %}
+                              <span class="badge badge-no-cover" title="No Cover Art Embedded">No Cover</span>
+                            {% endif %}
+                          </td>
+                          <td class="file-path-cell" title="{{ track.file_path }}">
+                            <code>{{ track.file_path }}</code>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <p class="ok">All matched tracks have album covers with resolution ≥ 1500×1500.</p>
                 {% endif %}
               </div>
             {% endif %}
@@ -495,6 +866,455 @@
           });
       }
       next();
+    }
+
+    /* ----- Fix Artist Logic ----- */
+
+    function fixArtist(btn) {
+      const filePath = btn.dataset.filePath;
+      const displayArtist = btn.dataset.displayArtist;
+      const allArtists = btn.dataset.allArtists ? btn.dataset.allArtists.split('|') : [];
+      if (!filePath || !displayArtist) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_artist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, display_artist: displayArtist, all_artists: allArtists }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllArtists(allBtn) {
+      if (!confirm("Fix ALL artist tags in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Fixing...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All fixed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const displayArtist = btn.dataset.displayArtist;
+        const allArtists = btn.dataset.allArtists ? btn.dataset.allArtists.split('|') : [];
+        if (!filePath || !displayArtist) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_artist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, display_artist: displayArtist, all_artists: allArtists }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Fix Title Logic ----- */
+
+    function fixTitle(btn) {
+      const filePath = btn.dataset.filePath;
+      const newTitle = btn.dataset.newTitle;
+      if (!filePath || !newTitle) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, new_title: newTitle }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllTitles(allBtn) {
+      if (!confirm("Fix ALL title tags in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)[data-new-title]");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Fixing...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All fixed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const newTitle = btn.dataset.newTitle;
+        if (!filePath || !newTitle) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, new_title: newTitle }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Fix Album Logic ----- */
+
+    function fixAlbum(btn) {
+      const filePath = btn.dataset.filePath;
+      const newAlbum = btn.dataset.newAlbum;
+      if (!filePath || !newAlbum) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_album", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, new_album: newAlbum }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllAlbums(allBtn) {
+      if (!confirm("Fix ALL album tags in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)[data-new-album]");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Fixing...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All fixed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const newAlbum = btn.dataset.newAlbum;
+        if (!filePath || !newAlbum) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_album", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, new_album: newAlbum }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Fix Filename Logic ----- */
+
+    function fixFilename(btn) {
+      const filePath = btn.dataset.filePath;
+      const newFilename = btn.dataset.newFilename;
+      if (!filePath || !newFilename) return;
+
+      btn.disabled = true;
+      btn.textContent = "…";
+
+      fetch("/fix_filename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, new_filename: newFilename }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            btn.title = data.error;
+          } else {
+            btn.className = "btn-fix success";
+            btn.textContent = "✓";
+            const row = btn.closest("tr");
+            if (row) row.style.opacity = "0.4";
+          }
+        })
+        .catch(() => {
+          btn.className = "btn-fix failed";
+          btn.textContent = "✗";
+        });
+    }
+
+    function fixAllFilenames(allBtn) {
+      if (!confirm("Rename ALL mismatched files in this section?")) return;
+
+      const card = allBtn.closest(".playlist-card") || allBtn.closest("div");
+      const buttons = card.querySelectorAll(".btn-fix:not(.success)[data-new-filename]");
+      allBtn.disabled = true;
+      allBtn.textContent = "🔧 Renaming...";
+
+      let idx = 0;
+      function next() {
+        if (idx >= buttons.length) {
+          allBtn.textContent = "✓ All renamed";
+          return;
+        }
+        const btn = buttons[idx++];
+        const filePath = btn.dataset.filePath;
+        const newFilename = btn.dataset.newFilename;
+        if (!filePath || !newFilename) { next(); return; }
+
+        btn.disabled = true;
+        btn.textContent = "…";
+
+        fetch("/fix_filename", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_path: filePath, new_filename: newFilename }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              btn.className = "btn-fix failed";
+              btn.textContent = "✗";
+              btn.title = data.error;
+            } else {
+              btn.className = "btn-fix success";
+              btn.textContent = "✓";
+              const row = btn.closest("tr");
+              if (row) row.style.opacity = "0.4";
+            }
+            setTimeout(next, 300);
+          })
+          .catch(() => {
+            btn.className = "btn-fix failed";
+            btn.textContent = "✗";
+            setTimeout(next, 300);
+          });
+      }
+      next();
+    }
+
+    /* ----- Music Library Tools Logic ----- */
+    let activeToolJobId = null;
+    let toolPollTimer = null;
+
+    function runLibraryTool(toolName) {
+      const targetFolder = document.getElementById("tool_target_folder").value;
+      const dryRun = document.getElementById("tool_dry_run").checked;
+      const visibleBrowser = document.getElementById("tool_visible_browser").checked;
+
+      const consoleBox = document.getElementById("tool-console");
+      const consoleTitle = document.getElementById("console-job-name");
+      const consoleBadge = document.getElementById("console-status-badge");
+      const consoleOutput = document.getElementById("console-output");
+
+      const toolDisplayNames = {
+        "sync_exports": "Sync Spotify CSVs (Exportify)",
+        "strip_metadata": "Strip Junk Metadata",
+        "import_metadata": "Import Year & Genre Tags",
+        "standardize_covers": "Standardize FLAC Covers",
+        "run_rsgain": "ReplayGain 2.0 Loudness Scan",
+        "check_covers": "Check Cover Art (< 1500px)"
+      };
+
+      const displayName = toolDisplayNames[toolName] || toolName;
+      consoleBox.style.display = "block";
+      consoleTitle.textContent = displayName;
+      consoleBadge.className = "badge running";
+      consoleBadge.textContent = "Running...";
+      consoleOutput.textContent = "Starting " + displayName + "...\n";
+
+      // Disable tool buttons while running
+      document.querySelectorAll(".btn-tool").forEach(b => b.disabled = true);
+
+      fetch("/tools/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tool: toolName,
+          folder: targetFolder,
+          options: {
+            dry_run: dryRun,
+            visible_browser: visibleBrowser
+          }
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          consoleBadge.className = "badge failed";
+          consoleBadge.textContent = "Failed";
+          consoleOutput.textContent += "\nError: " + data.error + "\n";
+          document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+        } else {
+          activeToolJobId = data.job_id;
+          if (toolPollTimer) clearInterval(toolPollTimer);
+          toolPollTimer = setInterval(pollToolJob, 800);
+        }
+      })
+      .catch(err => {
+        consoleBadge.className = "badge failed";
+        consoleBadge.textContent = "Failed";
+        consoleOutput.textContent += "\nNetwork Error: " + err + "\n";
+        document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+      });
+    }
+
+    function pollToolJob() {
+      if (!activeToolJobId) return;
+
+      fetch("/tools/status?job_id=" + encodeURIComponent(activeToolJobId))
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            clearInterval(toolPollTimer);
+            toolPollTimer = null;
+            document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+            return;
+          }
+
+          const consoleOutput = document.getElementById("console-output");
+          const consoleBadge = document.getElementById("console-status-badge");
+
+          if (data.logs && data.logs.length) {
+            consoleOutput.textContent = data.logs.join("\n");
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+          }
+
+          if (data.status === "complete") {
+            clearInterval(toolPollTimer);
+            toolPollTimer = null;
+            consoleBadge.className = "badge success";
+            consoleBadge.textContent = "✓ Completed";
+            document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+          } else if (data.status === "failed") {
+            clearInterval(toolPollTimer);
+            toolPollTimer = null;
+            consoleBadge.className = "badge failed";
+            consoleBadge.textContent = "✗ Failed";
+            document.querySelectorAll(".btn-tool").forEach(b => b.disabled = false);
+          }
+        })
+        .catch(() => {
+          // Retry on intermittent connection
+        });
+    }
+
+    function clearToolConsole() {
+      const consoleBox = document.getElementById("tool-console");
+      consoleBox.style.display = "none";
     }
   </script>
 </body>

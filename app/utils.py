@@ -7,9 +7,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from app.config import EXCLUDED_DISCOVERED_FOLDERS
 
 
-def normalize_text(value: str) -> str:
+def normalize_text(value: str, *, strip_parens: bool = True) -> str:
     value = value.lower().strip()
-    value = re.sub(r"\(.*?\)|\[.*?\]", "", value)
+    if strip_parens:
+        value = re.sub(r"\(.*?\)|\[.*?\]", "", value)
+    # Strip common hyphenated version tags (e.g. - remix, - live, - studio demo, - tv size)
+    value = re.sub(r"\s+-\s+(?:[^-\s]+\s+)*(?:remix|live|demo|edit|mix|version|tv size|instrumental)\b.*$", "", value, flags=re.IGNORECASE)
     value = value.replace("&", " and ")
     value = value.replace("feat.", "")
     value = value.replace("ft.", "")
@@ -24,11 +27,57 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/:*?"<>|]', "", name).strip().replace(" ", "_")
 
 
+# Map of Windows-illegal characters to visually similar Unicode replacements.
+# These are the same substitutions the user already applies by hand.
+FILENAME_CHAR_REPLACEMENTS: Dict[str, str] = {
+    "/": " \u2044 ",  # ⁄  fraction slash (padded with spaces)
+    ":": "\ua789",   # ꞉  modifier letter colon
+    "?": "\uff1f",   # ？ fullwidth question mark
+    ">": "\u02c3",   # ˃  modifier letter right arrowhead
+    "<": "\u02c2",   # ˂  modifier letter left arrowhead
+    '"': "\u201c",   # "  left double quotation mark
+    "|": "\u2502",   # │  box drawings light vertical
+    "*": "\u2217",   # ∗  asterisk operator
+    "\\": "\u29f5",  # ⧵  reverse solidus operator
+}
+
+
+def sanitize_filename_for_os(name: str) -> str:
+    """Replace Windows-illegal characters with Unicode look-alike substitutes."""
+    for illegal, safe in FILENAME_CHAR_REPLACEMENTS.items():
+        name = name.replace(illegal, safe)
+    return name.strip()
+
+
+def build_expected_filename(artist_display: str, title: str) -> str:
+    """Build the expected filename stem: 'Artist - Title' with OS-safe characters."""
+    raw = f"{artist_display} - {title}"
+    return sanitize_filename_for_os(raw)
+
+
+KNOWN_COMMA_ARTISTS = [
+    "Tyler, The Creator",
+    "nothing,nowhere.",
+    "Earth, Wind & Fire",
+    "Crosby, Stills, Nash & Young",
+    "Emerson, Lake & Palmer",
+    "Blood, Sweat & Tears",
+]
+
 def parse_artists(value: str) -> List[str]:
     if not value:
         return []
+        
+    # Temporarily hide commas in known artists so they don't get split
+    placeholder = "___COMMA___"
+    for known in KNOWN_COMMA_ARTISTS:
+        if known.lower() in value.lower():
+            safe_known = known.replace(",", placeholder)
+            value = re.sub(re.escape(known), safe_known, value, flags=re.IGNORECASE)
+
     parts = re.split(r";|,|\band\b|\bwith\b|\bx\b", value, flags=re.IGNORECASE)
-    return [part.strip() for part in parts if part.strip()]
+    
+    return [part.strip().replace(placeholder, ",") for part in parts if part.strip()]
 
 
 def parse_duration_to_ms(value: str) -> Optional[int]:

@@ -14,6 +14,12 @@ class Track:
     file_path: Optional[str] = None
     album: Optional[str] = None
     metadata_title: Optional[str] = None
+    metadata_artists: Optional[List[str]] = None
+    metadata_artists_raw: Optional[str] = None
+    has_navidrome_artists: bool = False
+    navidrome_artists_values: Optional[List[str]] = None
+    cover_width: Optional[int] = None
+    cover_height: Optional[int] = None
 
     @property
     def normalized_title(self) -> str:
@@ -23,4 +29,4 @@ class Track:
     @property
     def normalized_artists(self) -> List[str]:
         from app.utils import normalize_text
-        return [normalize_text(artist) for artist in self.artists if normalize_text(artist)]
+        return [normalize_text(artist, strip_parens=False) for artist in self.artists if normalize_text(artist, strip_parens=False)]

@@ -23,9 +23,10 @@ local-playlist-checker/
 │   ├── exportify.py            # Exportify CSV + Playwright automation
 │   ├── comparator.py           # Track comparison logic
 │   ├── downloader.py           # SpotiFLAC background jobs
+│   ├── tools.py                # Library maintenance tools & background job runner
 │   └── routes/
 │       ├── main.py             # / and /health routes
-│       └── api.py              # /download, /download_status, /delete routes
+│       └── api.py              # Track fixing, delete, download, & tools endpoints
 ├── config/
 │   └── playlist-checker-config.json  # Saved settings (gitignored)
 ├── frontend/
@@ -35,7 +36,13 @@ local-playlist-checker/
 │   ├── run.bat                 # Launch web UI (Windows)
 │   ├── run.sh                  # Launch web UI (Linux/macOS)
 │   ├── sync_playlists.py       # Standalone CLI syncer
-│   └── sync_hidden.bat         # Silent background sync (Windows)
+│   ├── sync_hidden.bat         # Silent background sync (Windows)
+│   ├── import_metadata.py      # Import year/genre from CSVs
+│   ├── standardize_covers.py   # Unify album cover art across FLACs
+│   ├── strip_metadata.py       # Strip unwanted metadata tags
+│   └── run_rsgain.bat          # ReplayGain 2.0 tagger launcher
+├── vendor/
+│   └── rsgain-3.7-win64/      # ReplayGain 2.0 scanner (bundled)
 ├── exports/                    # Downloaded Exportify CSVs (gitignored)
 ├── logs/                       # Sync logs (gitignored)
 └── run.py                      # Entry point

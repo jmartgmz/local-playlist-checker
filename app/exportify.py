@@ -158,6 +158,7 @@ def download_exportify_csvs(
             user_data_dir=str(profile_dir),
             headless=headless,
             accept_downloads=True,
+            locale="en-US",
         )
 
         try:
